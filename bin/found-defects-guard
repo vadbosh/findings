@@ -20,7 +20,8 @@ Heuristic, by design: a phrase that defers a defect ("отдельная зад�
 blockquotes, means the defect was not put where the rule says. A false
 positive costs one short continuation, and the model is told how to answer it.
 
-FOUND_DEFECTS_GUARD=off disables it. Each block is appended to
+FOUND_DEFECTS_GUARD=off disables the check; the ledger is still written
+(FINDINGS_RECORD=off stops that). Each block is appended to
 ~/.local/state/found-defects-guard.log for tuning the patterns.
 """
 import json
@@ -137,9 +138,8 @@ def ledger_record(reply, payload):
     """Write the reply's found-along-the-way items to bin/findings' ledger.
 
     Runs on every stop, the continuation included: that is the reply the
-    section was added to. Best-effort — a ledger failure never blocks."""
-    if os.environ.get("FINDINGS_RECORD", "").lower() == "off":
-        return
+    section was added to. Best-effort — a ledger failure never blocks.
+    FINDINGS_RECORD=off is honoured inside findings.record()."""
     try:
         sys.dont_write_bytecode = True
         import importlib.util
@@ -155,13 +155,15 @@ def ledger_record(reply, payload):
 
 
 def main():
-    if os.environ.get("FOUND_DEFECTS_GUARD", "").lower() == "off":
-        return
     payload = json.load(sys.stdin)
     reply = payload.get("last_assistant_message") or ""
     if not reply.strip():
         return
+    # Recording comes first: FOUND_DEFECTS_GUARD=off turns off the check, not
+    # the ledger. FINDINGS_RECORD=off is the switch for that.
     ledger_record(reply, payload)
+    if os.environ.get("FOUND_DEFECTS_GUARD", "").lower() == "off":
+        return
     if payload.get("stop_hook_active"):
         return
     problems = check(reply)

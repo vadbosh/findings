@@ -46,8 +46,8 @@ section. The example below shows the shape, not the words.
 ## Shown once; the ledger keeps it
 
 A finding appears in the chat **once**, in the reply where it was found. The
-Stop hook records that section in the ledger (`bin/findings`,
-`~/.local/state/findings/ledger.jsonl`), filed under the repository the
+Stop hook records that section in the ledger — one file on this machine,
+`~/.local/state/findings/ledger.jsonl` — labelled with the repository the
 finding's path points at. From then on:
 
 - **do not repeat open findings** in later replies. A reply carries only the
@@ -75,8 +75,8 @@ outside code, quotes and the proposals section, or this section not being last,
 continues the turn once with an instruction to append the section.
 `bin/findings-hook` (UserPromptSubmit) tells the model how many findings are
 open in the project and which are urgent; it is silent when there are none.
-Opencode has no way for a plugin to block the end of a turn or to record it;
-there the model runs `findings` itself.
+In Opencode a plugin records the section and adds the counts, but it cannot
+block the end of a turn: a finding buried in the body is not caught there.
 
 ## Why
 

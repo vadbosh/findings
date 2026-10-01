@@ -90,5 +90,21 @@ out="$(jq -nc --arg c "$TMP" '{cwd:$c}' | "$BIN/findings-hook")"
 [ -z "$out" ] && { pass=$((pass + 1)); [ "$QUIET" -eq 1 ] || echo "  ok    hook is silent for a project without findings"; } \
               || { fail=$((fail + 1)); echo "  FAIL  hook spoke for an empty project: $out"; }
 
+# The switches mean the same in every assistant.
+THIRD="## Found along the way${NL}${NL}1. [related] \`$B/sub/file.txt:5\` — switch test — checked. Fix?"
+jq -nc --arg m "$THIRD" --arg c "$B" '{stop_hook_active:false,cwd:$c,last_assistant_message:$m}' \
+    | FOUND_DEFECTS_GUARD=off "$G" >/dev/null
+check "FOUND_DEFECTS_GUARD=off still records" "switch test" "$(f list -p "$B")"
+FOURTH="## Found along the way${NL}${NL}1. [related] \`$B/sub/file.txt:6\` — must not be recorded — checked. Fix?"
+out="$(printf '%s' "$FOURTH" | FINDINGS_RECORD=off f record --cwd "$B")"
+absent "FINDINGS_RECORD=off: findings record writes nothing (the Opencode path)" "must not be recorded" "$(f list -p "$B") $out"
+
+# Parked only: nothing open, so the hook stays silent.
+f set park 2 >/dev/null; f set done 5 >/dev/null
+for i in $(f list -p "$B" --status open | sed -n 's/^  F\([0-9]*\).*/\1/p'); do f set park "$i" >/dev/null; done
+out="$(jq -nc --arg c "$B" '{cwd:$c}' | "$BIN/findings-hook")"
+[ -z "$out" ] && { pass=$((pass + 1)); [ "$QUIET" -eq 1 ] || echo "  ok    hook is silent when only parked findings remain"; } \
+              || { fail=$((fail + 1)); echo "  FAIL  hook spoke with nothing open: $out"; }
+
 echo "findings: passed $pass, failed $fail"
 [ "$fail" -eq 0 ]

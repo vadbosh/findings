@@ -14,7 +14,7 @@ findings fixes that in three moves: a rule that tells the assistant where to put
 a finding, a hook that holds it to that rule, and a ledger that keeps every
 finding until you say fix, park or skip.
 
-Claude Code · Codex · Opencode. Linux and macOS.
+Claude Code · Codex · Opencode. Tested on Linux; macOS should work and is untested.
 
 [Русская версия](README.RU.md) · [Changelog](CHANGELOG.md)
 
@@ -67,12 +67,22 @@ fix 12 · park 13 · skip 14
 `fix` turns it into work; it is marked `done` once the fix is verified. A finding
 that comes back after `done` is recorded again — that is a regression.
 
-## Where a finding is filed
+## Where a finding is kept
 
-Under the git repository its path points at. A defect in `/srv/infra/…` found
-while working in `/srv/app` is listed under `/srv/infra`, and shows up there
-the next time anyone works in that repository. Without a path, it goes under
-the repository of the session's directory.
+In one file on your machine: `~/.local/state/findings/ledger.jsonl`. Nothing is
+written into any repository. Every finding in that file carries a `project`
+label, and the label is what `/findings` filters on:
+
+```json
+{"op": "add", "id": 13, "project": "/srv/infra", "cwd": "/srv/app", "where": "/srv/infra/alerts/coredns.yaml", "tags": ["unrelated"], "text": "…"}
+```
+
+The label is the git repository the finding's path points at. A defect in
+`/srv/infra/…` found while working in `/srv/app` is labelled `/srv/infra`, so
+`/findings` lists it the next time you work in `/srv/infra`, and not in
+`/srv/app`. A finding with no path, or with a path outside any git repository,
+gets the repository of the session's directory; a session directory outside
+git is its own label. `/findings all` shows the whole file, grouped by label.
 
 ## Install
 
@@ -100,9 +110,11 @@ Needs python 3.8+ and, for filing by repository, git. No packages.
 /findings park 4-9        # also: skip, done, open — ids like 3, F3, 4-9, 3,5
 /findings fix 3,5         # take them on as the task
 
-findings list [--all] [--status open,park,skip,done|any]
-findings count            # one line, for hooks and prompts
+findings list [--all] [--status open,park,skip,done|any] [-p PATH]
+findings count [-p PATH]  # one line, for hooks and prompts
 findings set park 4-9     # or simply: findings park 4-9
+
+# -p PATH: the project of PATH instead of the current directory
 ```
 
 Codex has no user slash commands: ask "show findings", or run `findings list`.
@@ -128,7 +140,8 @@ turn, so there the rule is the only guard.
 
 **Telling the model.** `findings-hook` adds one line before each prompt — open,
 urgent and parked counts for the project, and each urgent finding. It is silent
-when the project has none, so a project without findings pays nothing.
+when nothing is open in the project — parked findings do not count — so a
+project without open findings pays nothing.
 
 ## Files
 
@@ -146,8 +159,9 @@ The ledger is one append-only JSONL file, `~/.local/state/findings/ledger.jsonl`
 (`$FINDINGS_DIR` or `$XDG_STATE_HOME` move it). Ids are global — F7 means one
 finding whatever the project. Concurrent sessions are serialised with `flock`.
 
-Switches: `FOUND_DEFECTS_GUARD=off` turns the guard off, `FINDINGS_RECORD=off`
-stops recording.
+Switches, the same in all three assistants: `FOUND_DEFECTS_GUARD=off` turns
+off the check for buried findings and still records the section;
+`FINDINGS_RECORD=off` stops recording.
 
 ## Tests
 

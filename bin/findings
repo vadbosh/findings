@@ -193,6 +193,11 @@ def parse_section(reply):
 
 
 def record(reply, cwd, session=None):
+    # FINDINGS_RECORD=off is checked here, not in the callers: the Stop hook
+    # and the Opencode plugin both end up in this function, so the switch
+    # means the same thing in every assistant.
+    if os.environ.get("FINDINGS_RECORD", "").lower() == "off":
+        return []
     # One item at a time, in the order of the reply: ids then follow the chat
     # numbering, so "item 2" of a reply is the next id after "item 1".
     added = []

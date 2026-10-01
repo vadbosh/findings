@@ -35,7 +35,7 @@ while [ $# -gt 0 ]; do
         --dry-run) DRY_RUN=1 ;;
         --no-rule) WITH_RULE=0 ;;
         --ide)     ONLY_IDE="${2:-}"; shift ;;
-        -h|--help) sed -n '2,24p' "${BASH_SOURCE[0]}" | sed 's/^# \?//'; exit 0 ;;
+        -h|--help) sed -n '2,24p' "${BASH_SOURCE[0]}" | sed -e 's/^# //' -e 's/^#$//'; exit 0 ;;
         *)         echo "unknown option: $1" >&2; exit 2 ;;
     esac
     shift

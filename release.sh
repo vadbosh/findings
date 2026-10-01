@@ -77,5 +77,5 @@ make_tag() {
 case "${1:-check}" in
     check) check ;;
     tag)   make_tag ;;
-    *)     sed -n '2,11p' "$0" | sed 's/^# \?//'; exit 2 ;;
+    *)     sed -n '2,11p' "$0" | sed -e 's/^# //' -e 's/^#$//'; exit 2 ;;
 esac

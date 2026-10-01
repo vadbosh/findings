@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.1.1 — 2026-10-01
+
+### Fixed
+
+- **`FOUND_DEFECTS_GUARD=off` no longer stops the ledger.** Recording sat
+  inside the guard after the switch, so turning off the check for buried
+  findings silently turned off recording as well. The section is recorded
+  first now; `FINDINGS_RECORD=off` is the switch for that.
+- **`FINDINGS_RECORD=off` works in Opencode.** Only the Stop hook read it; the
+  Opencode plugin calls `findings record`, which ignored it. The CLI checks it
+  itself now, so the switch means the same in every assistant.
+- **`--help` of install.sh and release.sh** used `\?` in sed, a GNU extension.
+- **The README described the ledger as written into repositories.** It is one
+  file; the repository is a `project` label `/findings` filters on. Also
+  corrected: the prompt hook is silent when nothing is *open* (parked findings
+  do not count); `-p PATH` is documented; macOS is untested, not supported.
+- **The rule said Opencode cannot record.** Its plugin does; it only cannot
+  block the end of a turn.
+
 ## 0.1.0 — 2026-10-01
 
 First release as a repository of its own. Until now the same files lived in a
