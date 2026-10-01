@@ -96,9 +96,9 @@ python lib/wire.py opencode
 
 ```powershell
 $env:FINDINGS_DIR = "$env:TEMP/findings-check"
-'{"cwd":"C:\\","stop_hook_active":true,"last_assistant_message":"## Found along the way\n\n1. [related] `C:\\x.txt` — check — install. Fix?"}' |
+'{"cwd":"C:\\","stop_hook_active":true,"last_assistant_message":"## Found along the way\n\n1. [related] `C:\\x.txt` - check - install. Fix?"}' |
     python "$HOME/.local/bin/found-defects-guard"
-findings list --scope all       # shows F1 … check — install.
+findings list --scope all       # shows F1 ... check - install.
 Remove-Item -Recurse $env:FINDINGS_DIR; Remove-Item Env:FINDINGS_DIR
 ```
 

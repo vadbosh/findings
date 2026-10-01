@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.1 — 2026-10-01
+
+### Fixed
+
+- **The Windows check in step 5 is plain ASCII.** Windows PowerShell 5.1 pipes
+  text to a native program in ASCII, so the dashes in the sample reply would
+  have reached Python as `?`. The record still worked; the sample no longer
+  depends on the console encoding.
+
 ## 0.3.0 — 2026-10-01
 
 ### Added
