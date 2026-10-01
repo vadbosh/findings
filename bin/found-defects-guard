@@ -1,0 +1,179 @@
+#!/usr/bin/env python3
+"""found-defects-guard — Stop hook that enforces rules/found-defects-last.md.
+
+The rule: a defect noticed along the way is reported in a final section
+("Найдено попутно" / "Found along the way"), never as a sentence in the body.
+A rule in prose does not fire reliably, so this checks the finished reply.
+
+Reads the Stop payload on stdin. Claude Code and Codex send the same fields:
+  stop_hook_active        true when this turn already continued once
+  last_assistant_message  the reply text
+Answers:
+  exit 0, no output                    reply passes
+  exit 0 + {"decision":"block",...}    reply continues once; `reason` tells
+                                       the model what to append
+Never blocks twice in a row (stop_hook_active), and fails open on any error:
+a broken guard must not trap a session.
+
+Heuristic, by design: a phrase that defers a defect ("отдельная задача",
+"also noticed", "out of scope") in the body, outside code, quotes and
+blockquotes, means the defect was not put where the rule says. A false
+positive costs one short continuation, and the model is told how to answer it.
+
+FOUND_DEFECTS_GUARD=off disables it. Each block is appended to
+~/.local/state/found-defects-guard.log for tuning the patterns.
+"""
+import json
+import os
+import re
+import sys
+import time
+
+SECTION = re.compile(
+    r"^#{1,6}\s*(найдено попутно|найдено по ходу|попутно найдено|found along the way)\s*:?\s*$",
+    re.I | re.M)
+HEADING = re.compile(r"^#{1,6}\s+\S", re.M)
+# Proposals sit at the end and are read; "do it as a separate task" there is
+# the proposed work itself, not a buried finding. The scan stops at them.
+PROPOSALS = re.compile(r"^#{1,6}\s*(предлагаю|proposals)\s*:?\s*$", re.I | re.M)
+
+DEFER = [
+    # Russian
+    r"отдельн\w+\s+(задач|вопрос|тикет|фикс)",
+    r"(исправ|поправ|почин|чин)\w*\s+отдельно",
+    r"(ещё|еще|также|заодно|попутно|кстати|параллельно)[,]?\s+(я\s+)?"
+    r"(нашёл|нашел|нашла|нашлось|заметил|заметила|обнаружил|обнаружила|увидел|увидела)",
+    r"не\s+связан\w*\s+с\s+(задач|текущ|основн)",
+    r"(вне|за)\s+рамк\w+\s+(задач|текущ)",
+    r"вне\s+(задачи|скоупа)",
+    # English
+    r"\bseparate\s+(task|issue|ticket|pr|fix|change)\b",
+    # lower case only: "Out of scope" is also a ticket section name
+    r"(?-i:\bout\s+of\s+scope\b)",
+    r"\bunrelated\s+(to|bug|issue|problem)\b",
+    r"\b(also|separately|incidentally|btw|by\s+the\s+way)[,]?\s+(i\s+)?(noticed|found|spotted)\b",
+    r"\b(fix|address|handle)(ed|ing)?\s+(it\s+|that\s+|this\s+)?separately\b",
+    r"\bpre-?existing\s+(bug|issue|problem)\b",
+]
+DEFER_RE = [re.compile(p, re.I) for p in DEFER]
+
+LOG = os.environ.get("FOUND_DEFECTS_GUARD_LOG") or os.path.expanduser("~/.local/state/found-defects-guard.log")
+
+
+def strip_quoted(text):
+    """Drop what the reply quotes rather than says: code, blockquotes, quotes."""
+    text = re.sub(r"```.*?```", " ", text, flags=re.S)
+    text = re.sub(r"`[^`\n]*`", " ", text)
+    text = re.sub(r"^\s*>.*$", " ", text, flags=re.M)
+    text = re.sub(r"«[^»\n]*»", " ", text)
+    text = re.sub(r"“[^”\n]*”", " ", text)
+    text = re.sub(r"\"[^\"\n]{0,200}\"", " ", text)
+    return text
+
+
+def snippet(text, m):
+    start = max(text.rfind("\n", 0, m.start()) + 1, m.start() - 100)
+    end = text.find("\n", m.end())
+    end = min(end if end != -1 else len(text), m.end() + 100)
+    return " ".join(text[start:end].split())
+
+
+def check(reply):
+    """Return a list of problems; empty means the reply passes."""
+    sections = list(SECTION.finditer(reply))
+    problems = []
+    if sections:
+        last = sections[-1]
+        if HEADING.search(reply, last.end()):
+            problems.append("the found-defects section is not the last section of the reply")
+        body = reply[:sections[0].start()]
+    else:
+        body = reply
+    proposals = PROPOSALS.search(body)
+    if proposals:
+        body = body[:proposals.start()]
+    clean = strip_quoted(body)
+    seen = set()
+    for rx in DEFER_RE:
+        for m in rx.finditer(clean):
+            s = snippet(clean, m)
+            if s not in seen:
+                seen.add(s)
+                problems.append(f"deferred finding in the body: \"{s}\"")
+    return problems
+
+
+def reason(problems):
+    lines = "\n".join(f"- {p}" for p in problems)
+    return (
+        "found-defects-guard (rules/found-defects-last.md):\n"
+        f"{lines}\n\n"
+        "Do not repeat your reply. Output only the final section, in the language "
+        "of the session (Russian session: «## Найдено попутно»), one line per defect: "
+        "[related]/[unrelated] tag translated, where, what is wrong, evidence or "
+        "\"unverified\", ending with the offer to fix (translated). Only the defects "
+        "from the reply above: earlier findings are in the ledger (`findings list`) "
+        "and are not repeated.\n"
+        "If none of the quoted phrases is about a defect (false positive), output one "
+        "line and nothing else: (found-defects-guard: false positive)"
+    )
+
+
+def log(problems, payload):
+    try:
+        os.makedirs(os.path.dirname(LOG), exist_ok=True)
+        with open(LOG, "a") as f:
+            f.write(json.dumps({
+                "ts": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+                "session_id": payload.get("session_id"),
+                "cwd": payload.get("cwd"),
+                "problems": problems,
+            }, ensure_ascii=False) + "\n")
+    except OSError:
+        pass
+
+
+def ledger_record(reply, payload):
+    """Write the reply's found-along-the-way items to bin/findings' ledger.
+
+    Runs on every stop, the continuation included: that is the reply the
+    section was added to. Best-effort — a ledger failure never blocks."""
+    if os.environ.get("FINDINGS_RECORD", "").lower() == "off":
+        return
+    try:
+        sys.dont_write_bytecode = True
+        import importlib.util
+        from importlib.machinery import SourceFileLoader
+        here = os.path.dirname(os.path.realpath(__file__))
+        loader = SourceFileLoader("findings", os.path.join(here, "findings"))
+        spec = importlib.util.spec_from_loader("findings", loader)
+        findings = importlib.util.module_from_spec(spec)
+        loader.exec_module(findings)
+        findings.record(reply, payload.get("cwd") or os.getcwd(), payload.get("session_id"))
+    except Exception:
+        pass
+
+
+def main():
+    if os.environ.get("FOUND_DEFECTS_GUARD", "").lower() == "off":
+        return
+    payload = json.load(sys.stdin)
+    reply = payload.get("last_assistant_message") or ""
+    if not reply.strip():
+        return
+    ledger_record(reply, payload)
+    if payload.get("stop_hook_active"):
+        return
+    problems = check(reply)
+    if not problems:
+        return
+    log(problems, payload)
+    sys.stdout.write(json.dumps({"decision": "block", "reason": reason(problems)}, ensure_ascii=False))
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception:
+        pass
+    sys.exit(0)

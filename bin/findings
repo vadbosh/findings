@@ -1,0 +1,317 @@
+#!/usr/bin/env python3
+"""findings — the ledger of defects found along the way (rules/found-defects-last.md).
+
+A finding is shown in the chat once, in the reply where it was found. The
+ledger keeps it after that, so later replies do not have to repeat it and a
+/compact or a new session does not lose it. bin/found-defects-guard records the
+"Found along the way" section of every finished reply here; nobody types `add`
+by hand in normal use.
+
+Storage: one append-only JSONL event log, $FINDINGS_DIR/ledger.jsonl
+(default $XDG_STATE_HOME/findings/, else ~/.local/state/findings/). Each
+finding carries its project: the git top level of the path it points at, else
+of the session's cwd, else the cwd itself. That is the routing: a finding about another repository is listed
+under that repository, not under the one the session happened to run in.
+
+  findings list   [-p PATH] [--all] [--status S,...]   digest, open first
+  findings count  [-p PATH]                            one line, for hooks
+  findings set    STATUS ID...                          open|park|skip|done
+  findings add    --where W --text T [--tag related|unrelated|urgent]...
+                  [--cwd DIR] [--session ID]
+  findings record --cwd DIR [--session ID] < reply     parse the section
+
+IDs are global and sequential, so F7 means one finding whatever the project:
+3, F3, 4-9 and 3,5 are all accepted by `set`.
+Statuses: open (default), park (keep, stop showing), skip (declined),
+done (fixed). A duplicate of an open, parked or skipped finding is not added
+again; a duplicate of a done one is, because that is a regression.
+"""
+import argparse
+import difflib
+import fcntl
+import json
+import os
+import re
+import subprocess
+import sys
+import time
+
+DIR = os.environ.get("FINDINGS_DIR") or os.path.join(
+    os.environ.get("XDG_STATE_HOME") or os.path.expanduser("~/.local/state"), "findings")
+STATUSES = ("open", "park", "skip", "done")
+
+SECTION = re.compile(
+    r"^#{1,6}\s*(найдено попутно|найдено по ходу|попутно найдено|found along the way)\s*:?\s*$",
+    re.I | re.M)
+HEADING = re.compile(r"^#{1,6}\s+\S", re.M)
+ITEM = re.compile(r"^\s*\d+[.)]\s+(.*\S)\s*$")
+TAGS = re.compile(r"^((?:\[[^\]]+\]\s*)+)")
+TAG_MAP = {
+    "related": "related", "связано": "related",
+    "unrelated": "unrelated", "не связано": "unrelated",
+    "urgent": "urgent", "срочно": "urgent",
+}
+OFFER = re.compile(r"\s*(исправить|fix)\s*\?\s*$", re.I)
+
+
+# ── projects ────────────────────────────────────────────────────────────────
+
+def toplevel(path):
+    path = os.path.realpath(os.path.expanduser(path))
+    d = path if os.path.isdir(path) else os.path.dirname(path)
+    while d and not os.path.isdir(d):
+        d = os.path.dirname(d)
+    if not d:
+        return None
+    try:
+        out = subprocess.run(["git", "-C", d, "rev-parse", "--show-toplevel"],
+                             capture_output=True, text=True, timeout=5)
+        if out.returncode == 0 and out.stdout.strip():
+            return out.stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        pass
+    return None
+
+
+def project_of(cwd):
+    return toplevel(cwd) or os.path.realpath(cwd)
+
+
+def route(where, cwd):
+    """The project a finding belongs to: the repository its path points at."""
+    m = re.match(r"^(~?/[^\s:`,]+)", where or "")
+    if m:
+        p = os.path.expanduser(m.group(1))
+        if os.path.exists(p) or os.path.exists(os.path.dirname(p)):
+            top = toplevel(p)
+            if top:
+                return top
+    return project_of(cwd)
+
+
+def ledger():
+    return os.path.join(DIR, "ledger.jsonl")
+
+
+# ── the log ─────────────────────────────────────────────────────────────────
+
+def load(project=None):
+    """{id: item} for one project, or for every project when project is None."""
+    items = {}
+    try:
+        with open(ledger()) as f:
+            for line in f:
+                try:
+                    e = json.loads(line)
+                except ValueError:
+                    continue
+                if e.get("op") == "add":
+                    items[e["id"]] = dict(e, status="open", status_ts=e["ts"])
+                elif e.get("op") == "set" and e.get("id") in items:
+                    items[e["id"]]["status"] = e["status"]
+                    items[e["id"]]["status_ts"] = e["ts"]
+    except FileNotFoundError:
+        pass
+    if project is not None:
+        items = {i: it for i, it in items.items() if it.get("project") == project}
+    return items
+
+
+def append(project, events):
+    os.makedirs(DIR, mode=0o700, exist_ok=True)
+    with open(ledger(), "a") as f:
+        fcntl.flock(f, fcntl.LOCK_EX)
+        # Ids are assigned under the lock, from what is on disk now: two
+        # sessions recording at once must not hand out the same number.
+        everything = load()
+        next_id = max(everything, default=0) + 1
+        items = {i: it for i, it in everything.items() if it.get("project") == project}
+        out = []
+        for e in events:
+            if e["op"] == "add":
+                dup = duplicate(items, e)
+                if dup:
+                    out.append((dup, False))
+                    continue
+                e = dict(e, id=next_id, project=project)
+                next_id += 1
+                items[e["id"]] = dict(e, status="open")
+                out.append((e["id"], True))
+            f.write(json.dumps(e, ensure_ascii=False) + "\n")
+        f.flush()
+    return out
+
+
+def norm(s):
+    return " ".join(re.sub(r"[`*_]", "", s or "").lower().split())
+
+
+def duplicate(items, e):
+    where, text = norm(e.get("where")), norm(e.get("text"))
+    for i, it in items.items():
+        if it["status"] == "done":
+            continue
+        if where and norm(it.get("where")) != where:
+            continue
+        if difflib.SequenceMatcher(None, norm(it.get("text")), text).ratio() >= 0.6:
+            return i
+    return None
+
+
+# ── parsing a reply ─────────────────────────────────────────────────────────
+
+def parse_section(reply):
+    """[(tags, where, text)] from the reply's found-along-the-way section."""
+    m = None
+    for m in SECTION.finditer(reply):
+        pass
+    if not m:
+        return []
+    body = reply[m.end():]
+    nxt = HEADING.search(body)
+    if nxt:
+        body = body[:nxt.start()]
+    out = []
+    for line in body.splitlines():
+        im = ITEM.match(line)
+        if not im:
+            continue
+        rest = im.group(1)
+        tags = []
+        tm = TAGS.match(rest)
+        if tm:
+            for t in re.findall(r"\[([^\]]+)\]", tm.group(1)):
+                t = TAG_MAP.get(t.strip().lower())
+                if t:
+                    tags.append(t)
+            rest = rest[tm.end():]
+        rest = OFFER.sub("", rest).strip()
+        wm = re.match(r"`([^`]+)`", rest)
+        where = wm.group(1) if wm else rest.split(" — ")[0].split(":")[0][:80]
+        out.append((tags, where.strip(), rest))
+    return out
+
+
+def record(reply, cwd, session=None):
+    # One item at a time, in the order of the reply: ids then follow the chat
+    # numbering, so "item 2" of a reply is the next id after "item 1".
+    added = []
+    for tags, where, text in parse_section(reply):
+        p = route(where, cwd)
+        [(i, new)] = append(p, [{"op": "add", "ts": now(), "session": session, "cwd": cwd,
+                                 "tags": tags, "where": where, "text": text}])
+        if new:
+            added.append((p, i))
+    return added
+
+
+# ── output ──────────────────────────────────────────────────────────────────
+
+def now():
+    return time.strftime("%Y-%m-%dT%H:%M:%S%z")
+
+
+def label(it):
+    tags = "".join(f"[{t}]" for t in it.get("tags", []))
+    return f"F{it['id']} {tags} {it['text']}".replace("  ", " ")
+
+
+def digest(project, statuses=("open", "park")):
+    items = [it for it in load(project).values() if it["status"] in statuses]
+    if not items:
+        return ""
+    order = {"open": 0, "park": 1, "skip": 2, "done": 3}
+    items.sort(key=lambda it: (order[it["status"]], "urgent" not in it.get("tags", []), it["id"]))
+    lines = [f"findings: {project}"]
+    for it in items:
+        mark = "" if it["status"] == "open" else f" ({it['status']})"
+        lines.append(f"  {label(it)}{mark}  — {it['ts'][:10]}")
+    return "\n".join(lines)
+
+
+def counts(project):
+    items = load(project).values()
+    open_ = [it for it in items if it["status"] == "open"]
+    urgent = [it for it in open_ if "urgent" in it.get("tags", [])]
+    parked = sum(1 for it in items if it["status"] == "park")
+    return open_, urgent, parked
+
+
+def parse_ids(args):
+    ids = []
+    for a in args:
+        for part in a.split(","):
+            part = part.strip().lstrip("Ff#")
+            if not part:
+                continue
+            if "-" in part:
+                lo, hi = part.split("-", 1)
+                ids += range(int(lo.lstrip("Ff#")), int(hi.lstrip("Ff#")) + 1)
+            else:
+                ids.append(int(part))
+    return ids
+
+
+def projects():
+    return sorted({it.get("project") for it in load().values() if it.get("project")})
+
+
+def main(argv):
+    ap = argparse.ArgumentParser(prog="findings", description=__doc__.split("\n\n")[0])
+    sub = ap.add_subparsers(dest="cmd")
+    for name in ("list", "count", "set", "add", "record"):
+        s = sub.add_parser(name)
+        s.add_argument("-p", "--project", default=None, help="a path inside the project (default: cwd)")
+        if name == "list":
+            s.add_argument("--all", action="store_true", help="every project with a ledger")
+            s.add_argument("--status", default="open,park", help="comma list, or 'any'")
+        if name == "set":
+            s.add_argument("status", choices=STATUSES)
+            s.add_argument("ids", nargs="+")
+        if name == "add":
+            s.add_argument("--where", required=True)
+            s.add_argument("--text", required=True)
+            s.add_argument("--tag", action="append", default=[], choices=["related", "unrelated", "urgent"])
+        if name in ("add", "record"):
+            s.add_argument("--cwd", default=os.getcwd())
+            s.add_argument("--session", default=None)
+    # `findings park 4-9` reads like the chat answer it comes from.
+    if argv and argv[0] in STATUSES:
+        argv = ["set"] + argv
+    a = ap.parse_args(argv)
+    if not a.cmd:
+        a = ap.parse_args(["list"] + argv)
+
+    project = project_of(a.project or os.getcwd())
+
+    if a.cmd == "list":
+        statuses = STATUSES if a.status == "any" else tuple(a.status.split(","))
+        targets = projects() if a.all else [project]
+        blocks = [b for b in (digest(p, statuses) for p in targets) if b]
+        print("\n\n".join(blocks) if blocks else "findings: nothing open")
+    elif a.cmd == "count":
+        open_, urgent, parked = counts(project)
+        print(f"{len(open_)} open, {len(urgent)} urgent, {parked} parked — {project}")
+    elif a.cmd == "set":
+        items = load()
+        ids = parse_ids(a.ids)
+        missing = [i for i in ids if i not in items]
+        if missing:
+            print(f"findings: no such id: {', '.join(f'F{i}' for i in missing)}", file=sys.stderr)
+            return 2
+        append(None, [{"op": "set", "id": i, "ts": now(), "status": a.status} for i in ids])
+        print(f"{a.status}: {', '.join(f'F{i}' for i in ids)}")
+    elif a.cmd == "add":
+        p = route(a.where, a.cwd) if not a.project else project
+        tags = list(dict.fromkeys(a.tag))
+        [(i, new)] = append(p, [{"op": "add", "ts": now(), "session": a.session, "cwd": a.cwd,
+                                  "tags": tags, "where": a.where, "text": a.text}])
+        print(f"{'added' if new else 'duplicate of'} F{i} — {p}")
+    elif a.cmd == "record":
+        for p, i in record(sys.stdin.read(), a.cwd, a.session):
+            print(f"added F{i} — {p}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

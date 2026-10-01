@@ -1,0 +1,50 @@
+#!/usr/bin/env python3
+"""findings-hook — UserPromptSubmit hook: tell the model what the ledger holds.
+
+rules/found-defects-last.md has the model show a finding once and leave the
+rest to the ledger (bin/findings). For that the model has to know, at every
+prompt, how many findings are open in this project and which are urgent —
+urgent ones are the only kind it repeats. One line of context, plus a line per
+urgent finding; nothing at all when the ledger of the project is empty, so a
+project without findings pays nothing.
+
+Claude Code and Codex both accept hookSpecificOutput.additionalContext on
+UserPromptSubmit. Fails open: any error prints nothing.
+"""
+import json
+import os
+import sys
+
+
+def main():
+    payload = json.load(sys.stdin)
+    sys.dont_write_bytecode = True
+    import importlib.util
+    from importlib.machinery import SourceFileLoader
+    here = os.path.dirname(os.path.realpath(__file__))
+    loader = SourceFileLoader("findings", os.path.join(here, "findings"))
+    spec = importlib.util.spec_from_loader("findings", loader)
+    findings = importlib.util.module_from_spec(spec)
+    loader.exec_module(findings)
+
+    project = findings.project_of(payload.get("cwd") or os.getcwd())
+    open_, urgent, parked = findings.counts(project)
+    if not open_:
+        return
+    lines = [
+        f"findings ledger for {project}: {len(open_)} open, {len(urgent)} urgent, "
+        f"{parked} parked (rules/found-defects-last.md). Do not repeat open findings in "
+        "replies; repeat only the urgent ones below. Digest: `findings list`."
+    ]
+    lines += [f"URGENT {findings.label(it)}" for it in urgent]
+    sys.stdout.write(json.dumps({"hookSpecificOutput": {
+        "hookEventName": "UserPromptSubmit",
+        "additionalContext": "\n".join(lines)}}, ensure_ascii=False))
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception:
+        pass
+    sys.exit(0)

@@ -1,0 +1,94 @@
+#!/usr/bin/env bash
+# tests/test_findings.sh — the ledger of rules/found-defects-last.md.
+#
+#   bash tests/test_findings.sh       every case, then a summary
+#   bash tests/test_findings.sh -q    failures and the summary only (sync.sh)
+#
+# Covers bin/findings (record, routing, dedupe, set, list, count), the ledger
+# write in bin/found-defects-guard, and bin/findings-hook. Everything runs in a
+# temporary FINDINGS_DIR and two throwaway git repositories; the real ledger in
+# ~/.local/state/findings is never touched.
+
+set -uo pipefail
+
+HERE="$(cd "$(dirname "$0")" && pwd)"
+BIN="$HERE/../bin"
+QUIET=0
+[ "${1:-}" = "-q" ] && QUIET=1
+
+TMP="$(mktemp -d)"
+trap 'rm -rf "$TMP"' EXIT
+export FINDINGS_DIR="$TMP/state" FOUND_DEFECTS_GUARD_LOG="$TMP/guard.log"
+export PYTHONDONTWRITEBYTECODE=1
+A="$TMP/repo-a" B="$TMP/repo-b"
+for r in "$A" "$B"; do mkdir -p "$r/sub" && git -C "$r" init -q && touch "$r/sub/file.txt"; done
+
+pass=0
+fail=0
+check() { # what, expected substring, actual
+    if [[ "$3" == *"$2"* ]]; then
+        pass=$((pass + 1)); [ "$QUIET" -eq 1 ] || printf '  ok    %s\n' "$1"
+    else
+        fail=$((fail + 1)); printf '  FAIL  %s\n        want: %s\n        got:  %s\n' "$1" "$2" "$3"
+    fi
+}
+absent() { # what, unexpected substring, actual
+    if [[ "$3" != *"$2"* ]]; then
+        pass=$((pass + 1)); [ "$QUIET" -eq 1 ] || printf '  ok    %s\n' "$1"
+    else
+        fail=$((fail + 1)); printf '  FAIL  %s\n        must not contain: %s\n        got: %s\n' "$1" "$2" "$3"
+    fi
+}
+f() { "$BIN/findings" "$@" 2>&1; }
+
+NL=$'\n'
+REPLY="Готово.${NL}${NL}## Найдено по ходу${NL}${NL}"
+REPLY+="1. [связано] \`$A/sub/file.txt:3\` — устаревший комментарий — строка 3. Исправить?${NL}"
+REPLY+="2. [не связано] \`$B/sub/file.txt\` — два владельца — diff. Исправить?${NL}"
+REPLY+="3. [срочно][не связано] prod: алерт горит 7 дней — не проверено. Исправить?"
+
+out="$(printf '%s' "$REPLY" | f record --cwd "$A/sub" --session s1)"
+check "records three items"                 "added F3" "$out"
+check "a path in repo B is filed under B"   "added F2 — $B" "$out"
+check "no path: filed under the cwd repo"   "added F3 — $A" "$out"
+
+out="$(printf '%s' "$REPLY" | f record --cwd "$A/sub" --session s2)"
+check "the same section again adds nothing" "" "$out"
+[ -z "$out" ] && { pass=$((pass + 1)); [ "$QUIET" -eq 1 ] || echo "  ok    dedupe is silent"; } \
+              || { fail=$((fail + 1)); echo "  FAIL  dedupe printed: $out"; }
+
+out="$(f list -p "$A")"
+check "list shows the urgent one first"     "  F3 [urgent][unrelated]" "$(printf '%s' "$out" | sed -n 2p)"
+check "tags are normalised from Russian"    "F1 [related]" "$out"
+absent "list of A hides B's finding"        "два владельца" "$out"
+check "list --all shows B too"              "два владельца" "$(f list --all)"
+
+check "count line"                          "2 open, 1 urgent, 0 parked" "$(f count -p "$A")"
+check "park via shorthand, a range"         "park: F1, F2" "$(f park 1-2)"
+check "parked stays in the digest"          "(park)" "$(f list -p "$A")"
+check "skip hides it from the digest"       "skip: F1" "$(f skip F1)"
+absent "skipped is not listed"              "устаревший" "$(f list -p "$A")"
+check "unknown id is refused"               "no such id: F99" "$(f set done 99)"
+f set done 3 >/dev/null
+out="$(printf '%s' "$REPLY" | f record --cwd "$A/sub" --session s3)"
+check "a done finding found again is a regression: new id" "added F4" "$out"
+
+# The guard writes the ledger on every stop, the continuation included.
+G="$BIN/found-defects-guard"
+SECOND="## Found along the way${NL}${NL}1. [related] \`$A/sub/file.txt:9\` — new bug — checked. Fix?"
+jq -nc --arg m "$SECOND" --arg c "$A" '{stop_hook_active:true,cwd:$c,session_id:"g",last_assistant_message:$m}' | "$G" >/dev/null
+check "guard records on the second stop"    "new bug" "$(f list -p "$A")"
+out="$(jq -nc --arg m "$SECOND" --arg c "$A" '{stop_hook_active:false,cwd:$c,last_assistant_message:$m}' | FINDINGS_RECORD=off "$G")"
+[ -z "$out" ] && { pass=$((pass + 1)); [ "$QUIET" -eq 1 ] || echo "  ok    a clean reply still passes the guard"; } \
+              || { fail=$((fail + 1)); echo "  FAIL  guard output: $out"; }
+
+# The prompt hook: urgent ones listed, silence when nothing is open.
+out="$(jq -nc --arg c "$A/sub" '{cwd:$c}' | "$BIN/findings-hook")"
+check "hook reports the open count"         "open, 1 urgent" "$(printf '%s' "$out" | jq -r .hookSpecificOutput.additionalContext)"
+check "hook lists the urgent finding"       "URGENT F4" "$(printf '%s' "$out" | jq -r .hookSpecificOutput.additionalContext)"
+out="$(jq -nc --arg c "$TMP" '{cwd:$c}' | "$BIN/findings-hook")"
+[ -z "$out" ] && { pass=$((pass + 1)); [ "$QUIET" -eq 1 ] || echo "  ok    hook is silent for a project without findings"; } \
+              || { fail=$((fail + 1)); echo "  FAIL  hook spoke for an empty project: $out"; }
+
+echo "findings: passed $pass, failed $fail"
+[ "$fail" -eq 0 ]

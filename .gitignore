@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+*.bak.*
+*.orig
+*.rej
+*~
+*.swp
+.DS_Store
+# This machine's notes and memory, not the project's
+.memsearch/
+.ai-context/
+CLAUDE.local.md
