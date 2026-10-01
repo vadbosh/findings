@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.3.0 — 2026-10-01
+
+### Added
+
+- **Windows, by hand.** README.WIN.md and README.WIN.ru.md: six PowerShell
+  steps, no shell scripts. Every command in them was run verbatim in
+  PowerShell 7 against a temporary HOME; real Windows is untested and the
+  files say so. The Opencode plugin is not available there (it needs a POSIX
+  shell).
+- **`lib/wire.py --python EXE`** runs the hooks through an interpreter:
+  Claude Code gets the exec form (`"command": "python", "args": [script]`, no
+  shell, no quoting), Codex `python "script"`. Both forms are recognised as
+  ours on the next run and on --remove.
+- **`bin/findings.cmd`** so `findings` can be typed on Windows.
+
+### Fixed
+
+- **`bin/findings` no longer needs `fcntl`**, which Windows does not have; it
+  locks with `msvcrt.locking` there.
+- **A Windows path routes a finding** (`C:\x\y.py`, `C:/x/y.py`), not only
+  `/…` and `~/…`.
+- **wire.py backups on Windows** would have been written to the root of the
+  drive: the name was built by replacing `/` in a path made of `\`.
+
 ## 0.2.0 — 2026-10-01
 
 ### Changed

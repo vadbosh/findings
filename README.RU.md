@@ -14,6 +14,7 @@ findings решает это тремя частями: правило гово�
 вы не ответите fix, park или skip.
 
 Claude Code · Codex · Opencode. Проверено на Linux; на macOS должно работать, но не проверялось.
+Windows: [установка вручную](README.WIN.ru.md).
 
 [English version](README.md) · [История версий](CHANGELOG.md)
 

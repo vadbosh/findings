@@ -37,12 +37,26 @@ again; a duplicate of a done one is, because that is a regression.
 """
 import argparse
 import difflib
-import fcntl
 import json
 import os
 import re
 import subprocess
 import sys
+
+# One writer at a time. fcntl does not exist on Windows; msvcrt.locking on the
+# first byte is the equivalent there (LK_LOCK retries for ~10 s, then raises).
+# Writes still go to the end: the file is opened in append mode.
+try:
+    import fcntl
+
+    def lock(f):
+        fcntl.flock(f, fcntl.LOCK_EX)
+except ImportError:
+    import msvcrt
+
+    def lock(f):
+        f.seek(0)
+        msvcrt.locking(f.fileno(), msvcrt.LK_LOCK, 1)
 import time
 
 DIR = os.environ.get("FINDINGS_DIR") or os.path.join(
@@ -88,7 +102,9 @@ def project_of(cwd):
 
 def route(where, cwd):
     """The project a finding belongs to: the repository its path points at."""
-    m = re.match(r"^(~?/[^\s:`,]+)", where or "")
+    # /abs, ~/rel, or a Windows drive path C:\x or C:/x; ":" ends the path
+    # (path:line), so a drive letter is matched as its own prefix.
+    m = re.match(r"^(~?/[^\s:`,]+|[A-Za-z]:[\\/][^\s:`,]+)", where or "")
     if m:
         p = os.path.expanduser(m.group(1))
         if os.path.exists(p) or os.path.exists(os.path.dirname(p)):
@@ -129,7 +145,7 @@ def load(project=None):
 def append(project, events):
     os.makedirs(DIR, mode=0o700, exist_ok=True)
     with open(ledger(), "a") as f:
-        fcntl.flock(f, fcntl.LOCK_EX)
+        lock(f)
         # Ids are assigned under the lock, from what is on disk now: two
         # sessions recording at once must not hand out the same number.
         everything = load()

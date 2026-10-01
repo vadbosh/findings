@@ -57,19 +57,27 @@ def program(cmd):
     return os.path.basename(parts[0]) if parts else ""
 
 
-def wire_hooks(ide, data, bindir, remove):
+def is_ours(hook, name):
+    """Our hook, in any of the forms it is written in: `/path/name`,
+    `python /path/name` (Codex on Windows), or command "python" with the script
+    in args (Claude Code on Windows). Backslashes count as separators."""
+    words = (hook.get("command") or "").split() + list(hook.get("args") or [])
+    return any(os.path.basename(w.strip('"\'').replace("\\", "/")) == name for w in words)
+
+
+def wire_hooks(ide, data, bindir, remove, python=None):
     changed = []
     hooks = data.setdefault("hooks", {})
     for event, name in HOOKS.items():
         entries = hooks.get(event, [])
         ours = [e for e in entries
-                if any(program(h.get("command")) == name for h in e.get("hooks", []))]
+                if any(is_ours(h, name) for h in e.get("hooks", []))]
         if remove:
             if not ours:
                 continue
             kept = []
             for e in entries:
-                rest = [h for h in e.get("hooks", []) if program(h.get("command")) != name]
+                rest = [h for h in e.get("hooks", []) if not is_ours(h, name)]
                 if rest:
                     kept.append(dict(e, hooks=rest))
                 elif e not in ours:
@@ -82,7 +90,15 @@ def wire_hooks(ide, data, bindir, remove):
             continue
         if ours:
             continue
-        hook = {"type": "command", "command": os.path.join(bindir, name), "timeout": 10}
+        script = os.path.join(bindir, name)
+        if python and ide == "claude":
+            # Exec form: no shell between Claude Code and the interpreter, so a
+            # Windows path needs no quoting.
+            hook = {"type": "command", "command": python, "args": [script], "timeout": 10}
+        elif python:
+            hook = {"type": "command", "command": f'{python} "{script}"', "timeout": 10}
+        else:
+            hook = {"type": "command", "command": script, "timeout": 10}
         if ide == "codex":
             hook["statusMessage"] = STATUS[name]
         hooks.setdefault(event, []).append({"matcher": "", "hooks": [hook]})
@@ -142,7 +158,10 @@ def backup(path):
     if not os.path.isfile(path):
         return
     os.makedirs(BACKUPS, mode=0o700, exist_ok=True)
-    tag = path.replace(HOME, "").strip("/").replace("/.", "/").lstrip(".").replace("/", "-")
+    # Separators normalised first: on Windows a leading "\.claude" would make
+    # os.path.join below start again from the root of the drive.
+    rel = path.replace(HOME, "").replace("\\", "/")
+    tag = rel.strip("/").replace("/.", "/").lstrip(".").replace("/", "-")
     shutil.copy2(path, os.path.join(BACKUPS, f"{tag}.bak.{int(time.time())}"))
 
 
@@ -159,6 +178,9 @@ def main(argv):
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("ide", choices=sorted(CONFIG))
     ap.add_argument("--bin", default=os.path.join(HOME, ".local", "bin"))
+    ap.add_argument("--python", default=None,
+                    help="run the hooks through this interpreter (Windows: python or py); "
+                         "default: run the scripts directly")
     ap.add_argument("--no-rule", action="store_true")
     ap.add_argument("--remove", action="store_true")
     ap.add_argument("--dry-run", action="store_true")
@@ -183,7 +205,7 @@ def main(argv):
     if a.ide == "opencode":
         changed = wire_opencode(data, with_rule, a.remove)
     else:
-        changed = wire_hooks(a.ide, data, a.bin, a.remove)
+        changed = wire_hooks(a.ide, data, a.bin, a.remove, a.python)
     other = wire_codex_agents(with_rule, a.remove, a.dry_run) if a.ide == "codex" else []
 
     if changed and not a.dry_run:

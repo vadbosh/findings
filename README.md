@@ -15,6 +15,7 @@ a finding, a hook that holds it to that rule, and a ledger that keeps every
 finding until you say fix, park or skip.
 
 Claude Code · Codex · Opencode. Tested on Linux; macOS should work and is untested.
+Windows: [manual install](README.WIN.md).
 
 [Русская версия](README.RU.md) · [Changelog](CHANGELOG.md)
 

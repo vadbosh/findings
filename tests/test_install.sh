@@ -117,5 +117,20 @@ inst --ide claude; rc=$?
 [ "$rc" -ne 0 ] && grep -q 'NOT wired' "$TMP/out" && ok "JSON with comments: left untouched, reported" || no "jsonc" "rc=$rc $(tail -3 "$TMP/out")"
 grep -q '// comment' "$H/.claude/settings.json" && ok "JSON with comments: content intact" || no "jsonc content" "$(cat "$H/.claude/settings.json")"
 
+# Windows wiring (README.WIN.md): hooks run through an interpreter. Claude Code
+# gets the exec form (command + args), Codex a command string; both must be
+# recognised as ours on the next run and on --remove.
+fresh
+w() { HOME="$H" python3 "$SRC/lib/wire.py" "$@" >/dev/null 2>&1; }
+for i in 1 2 3; do w claude --bin 'C:\Users\me\.local\bin' --python python; w codex --bin 'C:\Users\me\.local\bin' --python python; done
+c="$(python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); print(json.dumps(d["hooks"]["Stop"]))' "$H/.claude/settings.json" 2>&1)"
+[[ "$c" == *'"command": "python", "args": ['* ]] && [ "$(grep -o found-defects-guard <<< "$c" | wc -l)" = 1 ] \
+    && ok "--python: claude gets the exec form, once after three runs" || no "--python claude" "$c"
+x="$(cat "$H/.codex/hooks.json")"
+[ "$(grep -o 'python \\"C:' <<< "$x" | wc -l)" = 2 ] && ok "--python: codex gets 'python \"script\"', once per hook" || no "--python codex" "$x"
+w claude --remove; w codex --remove
+! grep -q 'found-defects-guard\|findings-hook' "$H/.claude/settings.json" "$H/.codex/hooks.json" \
+    && ok "--python: --remove recognises both forms" || no "--python remove" "$(cat "$H/.claude/settings.json" "$H/.codex/hooks.json")"
+
 echo "install: passed $pass, failed $fail"
 [ "$fail" -eq 0 ]
