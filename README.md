@@ -63,6 +63,28 @@ fix 12 · park 13 · skip 14
 | the task is closed (commit, push, "done"), before notes or a handoff | the digest: everything open and parked for the project |
 | you ask — `/findings`, "show findings" | the digest, a recommendation per item, a ready answer line |
 
+### This session, or the whole project
+
+`/findings` shows what **this session** found — the summary of the task in
+hand, whatever project each finding was filed under — and one line for the
+rest:
+
+```
+findings: /srv/app
+  F12 [related] `/srv/app/db/migrate.py:88` — the rollback skips the index it created …
+
++3 open in /srv/app from other sessions — /findings project
+```
+
+A directory where unrelated tasks run side by side stays readable, and nothing
+undecided disappears: the last line counts it. `/findings project` lists the
+whole project, `/findings all` every project.
+
+The session id comes from `$CLAUDE_CODE_SESSION_ID` in Claude Code. Codex and
+Opencode put none in the shell, so the prompt hook hands it to the model, which
+passes `--session <id>`. A shell with no id at all gets the whole project and
+a line saying so.
+
 `park` keeps a finding out of the chat and in the ledger. `skip` declines it.
 `fix` turns it into work; it is marked `done` once the fix is verified. A finding
 that comes back after `done` is recorded again — that is a regression.
@@ -78,9 +100,9 @@ label, and the label is what `/findings` filters on:
 ```
 
 The label is the git repository the finding's path points at. A defect in
-`/srv/infra/…` found while working in `/srv/app` is labelled `/srv/infra`, so
-`/findings` lists it the next time you work in `/srv/infra`, and not in
-`/srv/app`. A finding with no path, or with a path outside any git repository,
+`/srv/infra/…` found while working in `/srv/app` is labelled `/srv/infra`: the
+next time you work in `/srv/infra`, the last line of `/findings` counts it and
+`/findings project` lists it. A finding with no path, or with a path outside any git repository,
 gets the repository of the session's directory; a session directory outside
 git is its own label. `/findings all` shows the whole file, grouped by label.
 
@@ -105,12 +127,13 @@ Needs python 3.8+ and, for filing by repository, git. No packages.
 ## Usage
 
 ```bash
-/findings                 # open and parked, this project (Claude Code, Opencode)
+/findings                 # this session (Claude Code, Opencode)
+/findings project         # the whole project
 /findings all             # every project
 /findings park 4-9        # also: skip, done, open — ids like 3, F3, 4-9, 3,5
 /findings fix 3,5         # take them on as the task
 
-findings list [--all] [--status open,park,skip,done|any] [-p PATH]
+findings list [--scope session|project|all] [--session ID] [--status open,park,skip,done|any] [-p PATH]
 findings count [-p PATH]  # one line, for hooks and prompts
 findings set park 4-9     # or simply: findings park 4-9
 
@@ -139,9 +162,10 @@ of them the very pattern it targets. A false positive costs one short line:
 turn, so there the rule is the only guard.
 
 **Telling the model.** `findings-hook` adds one line before each prompt — open,
-urgent and parked counts for the project, and each urgent finding. It is silent
-when nothing is open in the project — parked findings do not count — so a
-project without open findings pays nothing.
+urgent and parked counts for the project, each urgent finding, and the id of
+the session. It is silent when nothing is open in the project or the session —
+parked findings do not count — so a project without open findings pays
+nothing.
 
 ## Files
 

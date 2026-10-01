@@ -10,6 +10,8 @@
 # Each case states which one it expects. The log goes to a temp file.
 
 set -uo pipefail
+# The session this suite runs in must not leak into its cases.
+unset CLAUDE_CODE_SESSION_ID FINDINGS_SESSION
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 GUARD="${FOUND_DEFECTS_GUARD_BIN:-$HERE/../bin/found-defects-guard}"

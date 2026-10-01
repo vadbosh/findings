@@ -10,10 +10,12 @@ by hand in normal use.
 Storage: one append-only JSONL event log, $FINDINGS_DIR/ledger.jsonl
 (default $XDG_STATE_HOME/findings/, else ~/.local/state/findings/). Each
 finding carries its project: the git top level of the path it points at, else
-of the session's cwd, else the cwd itself. That is the routing: a finding about another repository is listed
-under that repository, not under the one the session happened to run in.
+of the session's cwd, else the cwd itself. That is the routing: a finding about
+another repository is listed under that repository, not under the one the
+session happened to run in. It also carries the session that found it.
 
-  findings list   [-p PATH] [--all] [--status S,...]   digest, open first
+  findings list   [--scope session|project|all] [--session ID] [-p PATH]
+                  [--status S,...]                     digest, open first
   findings count  [-p PATH]                            one line, for hooks
   findings set    STATUS ID...                          open|park|skip|done
   findings add    --where W --text T [--tag related|unrelated|urgent]...
@@ -22,6 +24,13 @@ under that repository, not under the one the session happened to run in.
 
 IDs are global and sequential, so F7 means one finding whatever the project:
 3, F3, 4-9 and 3,5 are all accepted by `set`.
+
+`list` shows this session's findings by default — every project they were
+filed under — and one line counting what else is open in the project. The
+session id comes from --session, else $FINDINGS_SESSION, else
+$CLAUDE_CODE_SESSION_ID (set by Claude Code for every shell it runs). Without
+one, `list` shows the whole project and says so. --scope project is the whole
+project, --scope all (or --all) every project.
 Statuses: open (default), park (keep, stop showing), skip (declined),
 done (fixed). A duplicate of an open, parked or skipped finding is not added
 again; a duplicate of a done one is, because that is a regression.
@@ -221,8 +230,17 @@ def label(it):
     return f"F{it['id']} {tags} {it['text']}".replace("  ", " ")
 
 
-def digest(project, statuses=("open", "park")):
-    items = [it for it in load(project).values() if it["status"] in statuses]
+def current_session(explicit=None):
+    return explicit or os.environ.get("FINDINGS_SESSION") or os.environ.get("CLAUDE_CODE_SESSION_ID") or None
+
+
+def of_session(it, sid):
+    return bool(sid) and (it.get("session") or "").startswith(sid)
+
+
+def digest(project, statuses=("open", "park"), session=None):
+    items = [it for it in load(project).values() if it["status"] in statuses
+             and (session is None or of_session(it, session))]
     if not items:
         return ""
     order = {"open": 0, "park": 1, "skip": 2, "done": 3}
@@ -268,7 +286,10 @@ def main(argv):
         s = sub.add_parser(name)
         s.add_argument("-p", "--project", default=None, help="a path inside the project (default: cwd)")
         if name == "list":
-            s.add_argument("--all", action="store_true", help="every project with a ledger")
+            s.add_argument("--all", action="store_true", help="same as --scope all")
+            s.add_argument("--scope", choices=("session", "project", "all"), default=None,
+                           help="default: session when its id is known, else project")
+            s.add_argument("--session", default=None, help="session id or its prefix")
             s.add_argument("--status", default="open,park", help="comma list, or 'any'")
         if name == "set":
             s.add_argument("status", choices=STATUSES)
@@ -291,9 +312,28 @@ def main(argv):
 
     if a.cmd == "list":
         statuses = STATUSES if a.status == "any" else tuple(a.status.split(","))
-        targets = projects() if a.all else [project]
-        blocks = [b for b in (digest(p, statuses) for p in targets) if b]
-        print("\n\n".join(blocks) if blocks else "findings: nothing open")
+        sid = current_session(a.session)
+        scope = a.scope or ("all" if a.all else None)
+        if scope is None:
+            scope = "session" if sid else "project"
+            if not sid:
+                print("findings: no session id in this shell — showing the whole project "
+                      "(--session ID narrows it)")
+        if scope == "session" and not sid:
+            print("findings: --scope session needs a session id (--session ID)", file=sys.stderr)
+            return 2
+        if scope == "session":
+            # Everything this session found, whatever project it was filed under.
+            blocks = [b for b in (digest(p, statuses, session=sid) for p in projects()) if b]
+            print("\n\n".join(blocks) if blocks else f"findings: nothing from this session ({sid[:8]})")
+            others = [it for it in load(project).values()
+                      if it["status"] == "open" and not of_session(it, sid)]
+            if others:
+                print(f"\n+{len(others)} open in {project} from other sessions — /findings project")
+        else:
+            targets = projects() if scope == "all" else [project]
+            blocks = [b for b in (digest(p, statuses) for p in targets) if b]
+            print("\n\n".join(blocks) if blocks else "findings: nothing open")
     elif a.cmd == "count":
         open_, urgent, parked = counts(project)
         print(f"{len(open_)} open, {len(urgent)} urgent, {parked} parked — {project}")

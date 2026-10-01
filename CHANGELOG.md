@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.2.0 — 2026-10-01
+
+### Changed
+
+- **`/findings` shows this session by default.** A directory where unrelated
+  tasks run side by side gave every session everyone's findings. The default
+  is now what this session found — every project it filed them under — plus
+  one line counting what else is open in the project, so nothing undecided
+  drops out of sight. `/findings project` and `/findings all` give the wider
+  views; `findings list --scope session|project|all`, `--session ID` (a prefix
+  is enough).
+- **The session id reaches every assistant.** Claude Code sets
+  `$CLAUDE_CODE_SESSION_ID` in the shell; Codex and Opencode do not, so the
+  prompt hook now names the session to the model, and the Opencode plugin
+  passes its `sessionID` to the hook (cached per session). With no id at all,
+  `list` shows the whole project and says so.
+
 ## 0.1.1 — 2026-10-01
 
 ### Fixed

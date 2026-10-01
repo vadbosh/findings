@@ -1,10 +1,14 @@
 ---
-description: Digest of defects found along the way (ledger of rules/found-defects-last.md), and decisions on them. Usage — /findings (open + parked, this project) | /findings all | /findings park|skip|done|open <ids> | /findings fix <ids>. Ids are ledger ids (F12, 12, 4-9, 3,5).
+description: Digest of defects found along the way (ledger of rules/found-defects-last.md), and decisions on them. Usage — /findings (this session) | /findings project | /findings all | /findings park|skip|done|open <ids> | /findings fix <ids>. Ids are ledger ids (F12, 12, 4-9, 3,5).
 ---
 Dispatch on `$ARGUMENTS`:
 
-- empty → run `findings list`
-- `all` → run `findings list --all`
+- empty → run `findings list` — this session's findings plus a line counting
+  what else is open in the project. Where the shell carries no session id
+  (Codex, Opencode), add `--session <id>` from the "This session (<id>)" line
+  the findings hook put in your context
+- `project` → run `findings list --scope project`
+- `all` → run `findings list --scope all`
 - `park <ids>`, `skip <ids>`, `done <ids>`, `open <ids>` → run `findings $ARGUMENTS`, then `findings list`
 - `fix <ids>` → run `findings list --status open,park`, take those ids as the task, and start fixing them. Mark each one with `findings done <id>` only after its fix is verified
 

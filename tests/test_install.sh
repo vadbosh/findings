@@ -10,6 +10,8 @@
 # times and compare.
 
 set -uo pipefail
+# The session this suite runs in must not leak into its cases.
+unset CLAUDE_CODE_SESSION_ID FINDINGS_SESSION
 
 SRC="$(cd "$(dirname "$0")/.." && pwd)"
 QUIET=0

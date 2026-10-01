@@ -56,15 +56,18 @@ finding's path points at. From then on:
   decides. The UserPromptSubmit hook lists the open urgent ones for you
 - **the digest is shown at closure points**: when the task is closed (commit,
   push, "done"), before notes or a handoff are written, and when the reader asks.
-  Run `findings list` and put its output in the section, instead of new items
-  that are already in it
+  Run `findings list` — this session's findings, whatever project they went
+  to — and put its output in the section, instead of new items that are
+  already in it. Where the shell has no session id (Codex, Opencode), pass
+  `--session <id>` from the hook's "This session (<id>)" line
 - **the reader decides in one line**: "fix 3", "park 4-9", "skip 2", in chat
   numbers or ledger ids (`F12`). Map chat numbers to ledger ids with
   `findings list`, then run `findings set <park|skip|done|open> <ids>`.
   "Fix" makes it work; mark it `done` once the fix is verified. `park` keeps a
   finding out of the chat and in the ledger
 
-`/findings` shows the digest; `/findings park 4-9` and the like change it.
+`/findings` shows this session's digest, `/findings project` the whole project,
+`/findings all` everything; `/findings park 4-9` and the like change it.
 
 ## Enforcement
 
@@ -74,7 +77,8 @@ body — "separate task", "also noticed", "отдельная задача", "п
 outside code, quotes and the proposals section, or this section not being last,
 continues the turn once with an instruction to append the section.
 `bin/findings-hook` (UserPromptSubmit) tells the model how many findings are
-open in the project and which are urgent; it is silent when there are none.
+open in the project, which are urgent, and the id of its own session; it is
+silent when neither the project nor the session has an open finding.
 In Opencode a plugin records the section and adds the counts, but it cannot
 block the end of a turn: a finding buried in the body is not caught there.
 

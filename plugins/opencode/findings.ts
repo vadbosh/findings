@@ -28,7 +28,9 @@ const TTL_MS = 30_000
 
 export const FindingsPlugin: Plugin = async ({ client, $, directory }) => {
   const recorded = new Set<string>()
-  let cache = { at: 0, text: "" }
+  // Keyed by session: the hook's second line names the session, and one
+  // Opencode process can serve several.
+  const cache = new Map<string, { at: number; text: string }>()
 
   return {
     event: async ({ event }: any) => {
@@ -50,18 +52,20 @@ export const FindingsPlugin: Plugin = async ({ client, $, directory }) => {
         await $`printf '%s' ${text} | ${BIN}/findings record --cwd ${directory} --session ${sessionID}`
           .quiet()
           .nothrow()
-        cache.at = 0 // the counts just changed
+        cache.clear() // the counts just changed
       } catch {
         // never disturb the session over the ledger
       }
     },
 
-    "experimental.chat.system.transform": async (_input: any, output: any) => {
+    "experimental.chat.system.transform": async (input: any, output: any) => {
       if (!output || !Array.isArray(output.system)) return
-      if (Date.now() - cache.at > TTL_MS) {
+      const sessionID: string = input?.sessionID ?? ""
+      const hit = cache.get(sessionID)
+      if (!hit || Date.now() - hit.at > TTL_MS) {
         let text = ""
         try {
-          const payload = JSON.stringify({ cwd: directory })
+          const payload = JSON.stringify({ cwd: directory, session_id: sessionID })
           const res = await $`printf '%s' ${payload} | ${BIN}/findings-hook`.quiet().nothrow()
           if (res.exitCode === 0 && String(res.stdout).trim()) {
             text = JSON.parse(String(res.stdout))?.hookSpecificOutput?.additionalContext ?? ""
@@ -69,9 +73,10 @@ export const FindingsPlugin: Plugin = async ({ client, $, directory }) => {
         } catch {
           text = ""
         }
-        cache = { at: Date.now(), text }
+        cache.set(sessionID, { at: Date.now(), text })
       }
-      if (cache.text) output.system.push(cache.text)
+      const text = cache.get(sessionID)?.text
+      if (text) output.system.push(text)
     },
   }
 }

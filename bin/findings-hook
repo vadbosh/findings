@@ -4,9 +4,10 @@
 rules/found-defects-last.md has the model show a finding once and leave the
 rest to the ledger (bin/findings). For that the model has to know, at every
 prompt, how many findings are open in this project and which are urgent —
-urgent ones are the only kind it repeats. One line of context, plus a line per
-urgent finding; nothing at all when the ledger of the project is empty, so a
-project without findings pays nothing.
+urgent ones are the only kind it repeats — and the id of its own session, which
+`findings list --session` needs where the shell does not carry it (Codex,
+Opencode). Two lines of context, plus a line per urgent finding; nothing at all
+when neither the project nor the session has an open finding.
 
 Claude Code and Codex both accept hookSpecificOutput.additionalContext on
 UserPromptSubmit. Fails open: any error prints nothing.
@@ -29,13 +30,23 @@ def main():
 
     project = findings.project_of(payload.get("cwd") or os.getcwd())
     open_, urgent, parked = findings.counts(project)
-    if not open_:
+    # This session's open findings, whatever project they were filed under:
+    # the digest at the end of a task is about them. Codex and Opencode put no
+    # session id in the model's shell, so the hook hands it over here.
+    sid = payload.get("session_id") or ""
+    mine = [it for it in findings.load().values()
+            if it["status"] == "open" and findings.of_session(it, sid)]
+    if not open_ and not mine:
         return
-    lines = [
-        f"findings ledger for {project}: {len(open_)} open, {len(urgent)} urgent, "
-        f"{parked} parked (rules/found-defects-last.md). Do not repeat open findings in "
-        "replies; repeat only the urgent ones below. Digest: `findings list`."
-    ]
+    lines = []
+    if open_:
+        lines.append(
+            f"findings ledger for {project}: {len(open_)} open, {len(urgent)} urgent, "
+            f"{parked} parked (rules/found-defects-last.md). Do not repeat open findings in "
+            "replies; repeat only the urgent ones below.")
+    lines.append(f"This session ({sid}): {len(mine)} open finding(s). "
+                 f"Digest: `findings list --session {sid}`; whole project: "
+                 "`findings list --scope project`.")
     lines += [f"URGENT {findings.label(it)}" for it in urgent]
     sys.stdout.write(json.dumps({"hookSpecificOutput": {
         "hookEventName": "UserPromptSubmit",

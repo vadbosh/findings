@@ -10,6 +10,8 @@
 # ~/.local/state/findings is never touched.
 
 set -uo pipefail
+# The session this suite runs in must not leak into its cases.
+unset CLAUDE_CODE_SESSION_ID FINDINGS_SESSION
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 BIN="$HERE/../bin"
@@ -57,7 +59,7 @@ check "the same section again adds nothing" "" "$out"
 [ -z "$out" ] && { pass=$((pass + 1)); [ "$QUIET" -eq 1 ] || echo "  ok    dedupe is silent"; } \
               || { fail=$((fail + 1)); echo "  FAIL  dedupe printed: $out"; }
 
-out="$(f list -p "$A")"
+out="$(f list --scope project -p "$A")"
 check "list shows the urgent one first"     "  F3 [urgent][unrelated]" "$(printf '%s' "$out" | sed -n 2p)"
 check "tags are normalised from Russian"    "F1 [related]" "$out"
 absent "list of A hides B's finding"        "два владельца" "$out"
@@ -81,6 +83,23 @@ check "guard records on the second stop"    "new bug" "$(f list -p "$A")"
 out="$(jq -nc --arg m "$SECOND" --arg c "$A" '{stop_hook_active:false,cwd:$c,last_assistant_message:$m}' | FINDINGS_RECORD=off "$G")"
 [ -z "$out" ] && { pass=$((pass + 1)); [ "$QUIET" -eq 1 ] || echo "  ok    a clean reply still passes the guard"; } \
               || { fail=$((fail + 1)); echo "  FAIL  guard output: $out"; }
+
+# Session scope: what this session found, wherever it was filed, plus a count of the rest.
+out="$(FINDINGS_SESSION=s1 f list -p "$A")"
+check "session: its parked finding in another project is shown" "два владельца" "$out"
+absent "session: another session's finding is not listed"       "new bug" "$out"
+check "session: one line counts the rest of the project"        "+2 open in $A from other sessions" "$out"
+check "session: an id prefix is enough"                          "new bug" "$(f list --session g -p "$A")"
+out="$(f list -p "$A")"
+check "no session id: whole project, and says so"                "no session id" "$out"
+check "no session id: the project is listed"                     "new bug" "$out"
+out="$(FINDINGS_SESSION=s1 f list --scope project -p "$A")"
+check "--scope project ignores the session"                      "new bug" "$out"
+f list --scope session -p "$A" >/dev/null 2>&1; rc=$?
+[ "$rc" -eq 2 ] && { pass=$((pass + 1)); [ "$QUIET" -eq 1 ] || echo "  ok    --scope session without an id is refused"; } \
+               || { fail=$((fail + 1)); echo "  FAIL  --scope session without an id: rc=$rc"; }
+out="$(jq -nc --arg c "$TMP" '{cwd:$c,session_id:"g"}' | "$BIN/findings-hook" | jq -r .hookSpecificOutput.additionalContext)"
+check "hook names the session even where the project is empty"  "This session (g): 1 open" "$out"
 
 # The prompt hook: urgent ones listed, silence when nothing is open.
 out="$(jq -nc --arg c "$A/sub" '{cwd:$c}' | "$BIN/findings-hook")"
