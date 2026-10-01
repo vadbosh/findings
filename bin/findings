@@ -21,6 +21,9 @@ session happened to run in. It also carries the session that found it.
   findings add    --where W --text T [--tag related|unrelated|urgent]...
                   [--cwd DIR] [--session ID]
   findings record --cwd DIR [--session ID] < reply     parse the section
+  findings compact                                     one record per finding;
+                                                       old done to the archive
+  findings list --archive [--all]                      what compaction archived
 
 IDs are global and sequential, so F7 means one finding whatever the project:
 3, F3, 4-9 and 3,5 are all accepted by `set`.
@@ -36,10 +39,12 @@ done (fixed). A duplicate of an open, parked or skipped finding is not added
 again; a duplicate of a done one is, because that is a regression.
 """
 import argparse
+import datetime
 import difflib
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 
@@ -118,40 +123,81 @@ def ledger():
     return os.path.join(DIR, "ledger.jsonl")
 
 
+def archive_path():
+    return os.path.join(DIR, "archive.jsonl")
+
+
+# `done` findings older than this leave the working ledger for archive.jsonl
+# when it is compacted; compaction runs by itself once the ledger is bigger
+# than FINDINGS_COMPACT_BYTES. `skip` stays: it is what keeps a declined
+# finding from coming back, and the duplicate check reads only the ledger.
+ARCHIVE_DAYS = float(os.environ.get("FINDINGS_ARCHIVE_DAYS", "30"))
+COMPACT_BYTES = int(os.environ.get("FINDINGS_COMPACT_BYTES", str(1 << 20)))
+
+
 # ── the log ─────────────────────────────────────────────────────────────────
 
-def load(project=None):
-    """{id: item} for one project, or for every project when project is None."""
-    items = {}
+def read(path):
+    """({id: item}, the highest id ever handed out) from one log file.
+
+    UTF-8 explicitly: Windows would otherwise use the ANSI code page and fail
+    on the first Cyrillic finding."""
+    items, top = {}, 0
     try:
-        with open(ledger()) as f:
+        with open(path, encoding="utf-8") as f:
             for line in f:
                 try:
                     e = json.loads(line)
                 except ValueError:
                     continue
-                if e.get("op") == "add":
-                    items[e["id"]] = dict(e, status="open", status_ts=e["ts"])
-                elif e.get("op") == "set" and e.get("id") in items:
+                op = e.get("op")
+                if op == "meta":
+                    top = max(top, int(e.get("max_id", 0)))
+                elif op == "add":
+                    # A compacted record carries its status; an old one does not.
+                    items[e["id"]] = dict(e, status=e.get("status", "open"),
+                                          status_ts=e.get("status_ts", e["ts"]))
+                    top = max(top, e["id"])
+                elif op == "set" and e.get("id") in items:
                     items[e["id"]]["status"] = e["status"]
                     items[e["id"]]["status_ts"] = e["ts"]
     except FileNotFoundError:
         pass
+    return items, top
+
+
+def load(project=None, archived=False):
+    """{id: item} for one project, or every project when project is None."""
+    items, _ = read(archive_path() if archived else ledger())
     if project is not None:
         items = {i: it for i, it in items.items() if it.get("project") == project}
     return items
 
 
+class Locked:
+    """Every writer holds this. The lock is a file of its own, not the ledger:
+    compaction replaces the ledger, and a writer that had waited on the old
+    file would append to a file that is no longer there."""
+
+    def __enter__(self):
+        os.makedirs(DIR, mode=0o700, exist_ok=True)
+        self.f = open(os.path.join(DIR, "ledger.lock"), "a", encoding="utf-8")
+        lock(self.f)
+        return self
+
+    def __exit__(self, *exc):
+        self.f.close()
+
+
 def append(project, events):
-    os.makedirs(DIR, mode=0o700, exist_ok=True)
-    with open(ledger(), "a") as f:
-        lock(f)
+    with Locked():
         # Ids are assigned under the lock, from what is on disk now: two
-        # sessions recording at once must not hand out the same number.
-        everything = load()
-        next_id = max(everything, default=0) + 1
+        # sessions recording at once must not hand out the same number, and a
+        # compacted or archived id is never handed out again.
+        everything, top = read(ledger())
+        next_id = max(max(everything, default=0), top) + 1
         items = {i: it for i, it in everything.items() if it.get("project") == project}
-        out = []
+        out, lines = [], []
         for e in events:
             if e["op"] == "add":
                 dup = duplicate(items, e)
@@ -162,9 +208,46 @@ def append(project, events):
                 next_id += 1
                 items[e["id"]] = dict(e, status="open")
                 out.append((e["id"], True))
-            f.write(json.dumps(e, ensure_ascii=False) + "\n")
-        f.flush()
+            lines.append(json.dumps(e, ensure_ascii=False) + "\n")
+        if lines:
+            with open(ledger(), "a", encoding="utf-8") as f:
+                f.writelines(lines)
+        if os.path.getsize(ledger()) > COMPACT_BYTES:
+            compact_locked()
     return out
+
+
+def stamp(ts):
+    try:
+        return datetime.datetime.strptime(ts, "%Y-%m-%dT%H:%M:%S%z").timestamp()
+    except (TypeError, ValueError):
+        return time.time()          # unreadable: treat as recent, never archive
+
+
+def compact_locked():
+    """One record per finding at its current status; old `done` to the archive.
+
+    Call with the lock held. The archive is written first: a crash between the
+    two steps leaves a finding in both files, never in neither. The previous
+    ledger is kept as ledger.jsonl.prev."""
+    items, top = read(ledger())
+    cutoff = time.time() - ARCHIVE_DAYS * 86400
+    keep, old = [], []
+    for it in sorted(items.values(), key=lambda it: it["id"]):
+        rec = dict(it, op="add")
+        (old if it["status"] == "done" and stamp(it["status_ts"]) < cutoff else keep).append(rec)
+    if old:
+        with open(archive_path(), "a", encoding="utf-8") as f:
+            f.writelines(json.dumps(r, ensure_ascii=False) + "\n" for r in old)
+    tmp = ledger() + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        f.write(json.dumps({"op": "meta", "max_id": max(top, max(items, default=0))}) + "\n")
+        f.writelines(json.dumps(r, ensure_ascii=False) + "\n" for r in keep)
+    if os.path.exists(ledger()):
+        shutil.copy2(ledger(), ledger() + ".prev")
+        shutil.copymode(ledger(), tmp)
+    os.replace(tmp, ledger())
+    return len(items), len(keep), len(old)
 
 
 def norm(s):
@@ -254,8 +337,8 @@ def of_session(it, sid):
     return bool(sid) and (it.get("session") or "").startswith(sid)
 
 
-def digest(project, statuses=("open", "park"), session=None):
-    items = [it for it in load(project).values() if it["status"] in statuses
+def digest(project, statuses=("open", "park"), session=None, archived=False):
+    items = [it for it in load(project, archived).values() if it["status"] in statuses
              and (session is None or of_session(it, session))]
     if not items:
         return ""
@@ -291,14 +374,14 @@ def parse_ids(args):
     return ids
 
 
-def projects():
-    return sorted({it.get("project") for it in load().values() if it.get("project")})
+def projects(archived=False):
+    return sorted({it.get("project") for it in load(archived=archived).values() if it.get("project")})
 
 
 def main(argv):
     ap = argparse.ArgumentParser(prog="findings", description=__doc__.split("\n\n")[0])
     sub = ap.add_subparsers(dest="cmd")
-    for name in ("list", "count", "set", "add", "record"):
+    for name in ("list", "count", "set", "add", "record", "compact"):
         s = sub.add_parser(name)
         s.add_argument("-p", "--project", default=None, help="a path inside the project (default: cwd)")
         if name == "list":
@@ -307,6 +390,8 @@ def main(argv):
                            help="default: session when its id is known, else project")
             s.add_argument("--session", default=None, help="session id or its prefix")
             s.add_argument("--status", default="open,park", help="comma list, or 'any'")
+            s.add_argument("--archive", action="store_true",
+                           help="the archive: done findings moved out by compaction")
         if name == "set":
             s.add_argument("status", choices=STATUSES)
             s.add_argument("ids", nargs="+")
@@ -326,7 +411,11 @@ def main(argv):
 
     project = project_of(a.project or os.getcwd())
 
-    if a.cmd == "list":
+    if a.cmd == "list" and a.archive:
+        targets = projects(archived=True) if (a.all or a.scope == "all") else [project]
+        blocks = [b for b in (digest(p, STATUSES, archived=True) for p in targets) if b]
+        print("\n\n".join(blocks) if blocks else "findings: archive is empty")
+    elif a.cmd == "list":
         statuses = STATUSES if a.status == "any" else tuple(a.status.split(","))
         sid = current_session(a.session)
         scope = a.scope or ("all" if a.all else None)
@@ -358,7 +447,15 @@ def main(argv):
         ids = parse_ids(a.ids)
         missing = [i for i in ids if i not in items]
         if missing:
-            print(f"findings: no such id: {', '.join(f'F{i}' for i in missing)}", file=sys.stderr)
+            archived = load(archived=True)
+            gone = [i for i in missing if i in archived]
+            if gone:
+                print(f"findings: archived (done): {', '.join(f'F{i}' for i in gone)} — "
+                      "`findings list --archive`; record the defect again if it is back",
+                      file=sys.stderr)
+            rest = [i for i in missing if i not in archived]
+            if rest:
+                print(f"findings: no such id: {', '.join(f'F{i}' for i in rest)}", file=sys.stderr)
             return 2
         append(None, [{"op": "set", "id": i, "ts": now(), "status": a.status} for i in ids])
         print(f"{a.status}: {', '.join(f'F{i}' for i in ids)}")
@@ -368,6 +465,13 @@ def main(argv):
         [(i, new)] = append(p, [{"op": "add", "ts": now(), "session": a.session, "cwd": a.cwd,
                                   "tags": tags, "where": a.where, "text": a.text}])
         print(f"{'added' if new else 'duplicate of'} F{i} — {p}")
+    elif a.cmd == "compact":
+        with Locked():
+            before = os.path.getsize(ledger()) if os.path.exists(ledger()) else 0
+            n, kept, archived = compact_locked()
+            after = os.path.getsize(ledger())
+        print(f"compacted: {n} findings — {kept} kept, {archived} archived; "
+              f"{before // 1024} KiB -> {after // 1024} KiB")
     elif a.cmd == "record":
         for p, i in record(sys.stdin.read(), a.cwd, a.session):
             print(f"added F{i} — {p}")

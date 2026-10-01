@@ -180,9 +180,25 @@ commands/findings.md
 lib/wire.py               edits settings.json, hooks.json, opencode.json, AGENTS.md
 ```
 
-The ledger is one append-only JSONL file, `~/.local/state/findings/ledger.jsonl`
-(`$FINDINGS_DIR` or `$XDG_STATE_HOME` move it). Ids are global — F7 means one
-finding whatever the project. Concurrent sessions are serialised with `flock`.
+The ledger is one JSONL file, `~/.local/state/findings/ledger.jsonl`
+(`$FINDINGS_DIR` or `$XDG_STATE_HOME` move it). New findings and decisions are
+appended; ids are global — F7 means one finding whatever the project, and an id
+is never handed out twice. Concurrent sessions take turns on a lock file
+(`flock`; `msvcrt` on Windows).
+
+**It does not grow without bound.** Once it passes 1 MiB it compacts itself:
+one record per finding at its current status, and `done` findings older than
+30 days move to `archive.jsonl` next to it. `skip` stays, because that is what
+keeps a declined finding from coming back. Measured on 10 000 findings: 6.1 MiB
+became 2.1 MiB, and the prompt hook went from 433 ms to 188 ms.
+
+```bash
+findings compact            # now, instead of waiting for 1 MiB
+findings list --archive     # what went to the archive (--all: every project)
+```
+
+The previous ledger is kept as `ledger.jsonl.prev`. Tuning:
+`FINDINGS_COMPACT_BYTES` (default 1048576), `FINDINGS_ARCHIVE_DAYS` (default 30).
 
 Switches, the same in all three assistants: `FOUND_DEFECTS_GUARD=off` turns
 off the check for buried findings and still records the section;

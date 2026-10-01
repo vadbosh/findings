@@ -184,10 +184,26 @@ commands/findings.md
 lib/wire.py               edits settings.json, hooks.json, opencode.json, AGENTS.md
 ```
 
-Журнал — один JSONL-файл, в который только дописывают:
-`~/.local/state/findings/ledger.jsonl` (`$FINDINGS_DIR` или `$XDG_STATE_HOME`
-переносят его). Номера сквозные: F7 — одна и та же находка в любом проекте.
-Одновременные сессии пишут по очереди, через `flock`.
+Журнал — один JSONL-файл, `~/.local/state/findings/ledger.jsonl`
+(`$FINDINGS_DIR` или `$XDG_STATE_HOME` переносят его). Новые находки и решения
+по ним дописываются в конец. Номера сквозные: F7 — одна и та же находка в любом
+проекте, и один номер никогда не выдаётся дважды. Одновременные сессии пишут по
+очереди, через lock-файл (`flock`; на Windows — `msvcrt`).
+
+**Бесконечно он не растёт.** Когда файл больше 1 МиБ, журнал уплотняется сам:
+по одной записи на находку с её текущим статусом, а находки `done` старше 30
+дней переезжают в `archive.jsonl` рядом. `skip` остаётся: именно он не даёт
+отклонённой находке вернуться. Замер на 10 000 находок: было 6,1 МиБ, стало
+2,1 МиБ; хук перед запросом — 433 мс до, 188 мс после.
+
+```bash
+findings compact            # now, instead of waiting for 1 MiB
+findings list --archive     # what went to the archive (--all: every project)
+```
+
+Предыдущая версия журнала сохраняется как `ledger.jsonl.prev`. Настройки:
+`FINDINGS_COMPACT_BYTES` (по умолчанию 1048576), `FINDINGS_ARCHIVE_DAYS` (по
+умолчанию 30).
 
 Переключатели одинаково работают во всех трёх ассистентах:
 `FOUND_DEFECTS_GUARD=off` выключает поиск спрятанных находок, но секция

@@ -126,4 +126,4 @@ Remove-Item "$HOME/.claude/rules/found-defects-last.md", "$HOME/.claude/commands
             "$HOME/.config/opencode/commands/findings.md" -ErrorAction SilentlyContinue
 ```
 
-The ledger stays: `$HOME/.local/state/findings/ledger.jsonl`.
+The ledger stays: `$HOME/.local/state/findings/` (`ledger.jsonl`, `archive.jsonl`).

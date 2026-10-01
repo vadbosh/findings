@@ -127,4 +127,4 @@ Remove-Item "$HOME/.claude/rules/found-defects-last.md", "$HOME/.claude/commands
             "$HOME/.config/opencode/commands/findings.md" -ErrorAction SilentlyContinue
 ```
 
-Журнал остаётся: `$HOME/.local/state/findings/ledger.jsonl`.
+Журнал остаётся: `$HOME/.local/state/findings/` (`ledger.jsonl`, `archive.jsonl`).

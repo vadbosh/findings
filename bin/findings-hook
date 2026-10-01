@@ -29,13 +29,17 @@ def main():
     loader.exec_module(findings)
 
     project = findings.project_of(payload.get("cwd") or os.getcwd())
-    open_, urgent, parked = findings.counts(project)
+    # One read of the ledger for everything below: this runs before every prompt.
+    items = findings.load().values()
+    here = [it for it in items if it.get("project") == project]
+    open_ = [it for it in here if it["status"] == "open"]
+    urgent = [it for it in open_ if "urgent" in it.get("tags", [])]
+    parked = sum(1 for it in here if it["status"] == "park")
     # This session's open findings, whatever project they were filed under:
     # the digest at the end of a task is about them. Codex and Opencode put no
     # session id in the model's shell, so the hook hands it over here.
     sid = payload.get("session_id") or ""
-    mine = [it for it in findings.load().values()
-            if it["status"] == "open" and findings.of_session(it, sid)]
+    mine = [it for it in items if it["status"] == "open" and findings.of_session(it, sid)]
     if not open_ and not mine:
         return
     lines = []

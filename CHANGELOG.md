@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.4.0 — 2026-10-01
+
+### Added
+
+- **The ledger compacts itself.** Past `FINDINGS_COMPACT_BYTES` (1 MiB) it is
+  rewritten to one record per finding at its current status, and `done`
+  findings older than `FINDINGS_ARCHIVE_DAYS` (30) move to `archive.jsonl`.
+  `skip` stays, so a declined finding still does not come back. On 10 000
+  findings: 6.1 MiB to 2.1 MiB, the prompt hook 433 ms to 188 ms.
+  `findings compact` runs it now; `findings list --archive` shows the
+  archive; `findings set` on an archived id says where it went. Ids are never
+  reused: the highest one handed out is kept in the ledger's first line.
+
+### Changed
+
+- **Writers lock `ledger.lock`, not the ledger.** Compaction replaces the
+  ledger; a writer that had waited on the old file would have appended to a
+  file no longer there.
+- **The prompt hook reads the ledger once,** not twice.
+
+### Fixed
+
+- **Windows: every file is opened as UTF-8.** Without it Python uses the ANSI
+  code page there, and the first Cyrillic finding would have failed to record —
+  silently, since the guard never blocks on a ledger error.
+
 ## 0.3.1 — 2026-10-01
 
 ### Fixed

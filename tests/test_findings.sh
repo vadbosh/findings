@@ -125,5 +125,35 @@ out="$(jq -nc --arg c "$B" '{cwd:$c}' | "$BIN/findings-hook")"
 [ -z "$out" ] && { pass=$((pass + 1)); [ "$QUIET" -eq 1 ] || echo "  ok    hook is silent when only parked findings remain"; } \
               || { fail=$((fail + 1)); echo "  FAIL  hook spoke with nothing open: $out"; }
 
+# ── Compaction and the archive, on a ledger of their own ────────────────────
+export FINDINGS_DIR="$TMP/compact"
+printf '%s' "$REPLY" | f record --cwd "$A/sub" --session c1 >/dev/null     # F1 A, F2 B, F3 A urgent
+f skip 1 >/dev/null; f done 3 >/dev/null; f park 2 >/dev/null
+before="$(f list --scope all --status any)"
+out="$(f compact)"
+check "compact reports what it did"              "compacted: 3 findings — 3 kept, 0 archived" "$out"
+[ "$before" = "$(f list --scope all --status any)" ] && { pass=$((pass + 1)); [ "$QUIET" -eq 1 ] || echo "  ok    compact loses nothing: same view before and after"; } \
+    || { fail=$((fail + 1)); echo "  FAIL  compact changed the view"; diff <(echo "$before") <(f list --scope all --status any); }
+! grep -q '"op": "set"' "$FINDINGS_DIR/ledger.jsonl" && { pass=$((pass + 1)); [ "$QUIET" -eq 1 ] || echo "  ok    compact folds every set into its record"; } \
+    || { fail=$((fail + 1)); echo "  FAIL  set events left after compact"; }
+
+out="$(FINDINGS_ARCHIVE_DAYS=0 f compact)"
+check "done findings go to the archive"          "2 kept, 1 archived" "$out"
+check "list --archive shows them"                "(done)" "$(f list --archive --all)"
+absent "the ledger no longer lists them"         "алерт горит" "$(f list --scope all --status any)"
+check "set on an archived id says where it went" "archived (done): F3" "$(f set open 3)"
+out="$(printf '%s' "$REPLY" | f record --cwd "$A/sub" --session c2)"
+absent "a skipped finding does not come back"    "устаревший" "$(f list --scope all --status open)"
+check "an archived done finding found again is new, with a fresh id" "added F4" "$out"
+
+export FINDINGS_COMPACT_BYTES=1
+printf '%s' "## Found along the way${NL}${NL}1. [related] \`$A/sub/file.txt:7\` — auto — x. Fix?" | f record --cwd "$A" --session c3 >/dev/null
+unset FINDINGS_COMPACT_BYTES
+head -1 "$FINDINGS_DIR/ledger.jsonl" | grep -q '"op": "meta"' && { pass=$((pass + 1)); [ "$QUIET" -eq 1 ] || echo "  ok    compaction runs by itself past FINDINGS_COMPACT_BYTES"; } \
+    || { fail=$((fail + 1)); echo "  FAIL  no automatic compaction: $(head -1 "$FINDINGS_DIR/ledger.jsonl")"; }
+check "ids continue after compaction and archiving" "F5" "$(f list --scope all --status any)"
+[ -e "$FINDINGS_DIR/ledger.jsonl.prev" ] && { pass=$((pass + 1)); [ "$QUIET" -eq 1 ] || echo "  ok    the previous ledger is kept as ledger.jsonl.prev"; } \
+    || { fail=$((fail + 1)); echo "  FAIL  no ledger.jsonl.prev"; }
+
 echo "findings: passed $pass, failed $fail"
 [ "$fail" -eq 0 ]
