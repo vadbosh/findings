@@ -67,8 +67,25 @@ expect pass  "phrase in «quotes»"      "Правило запрещает фр
 expect pass  "phrase in blockquote"    "Было так:${NL}> Ещё нашёл ошибку. Отдельная задача.${NL}Теперь правило это ловит."
 expect pass  "deferral inside proposals" "Готово.${NL}${NL}## Предлагаю${NL}1. Сделать слой 6 отдельной задачей."
 expect pass  "Out of scope as a name"  "В тикете обновил раздел Out of scope: осталось одно закрепление."
-expect pass  "second stop passes"      "Ещё нашёл ошибку. Отдельная задача." true
+expect pass  "отдельные вопросы (count)" "Обе строки записаны как отдельные вопросы. Готово."
+expect pass  "отдельных вопросах"      "На отдельных вопросах разброс от −56% до +21%."
+expect block "отдельной задачей"       "Сделал X. Баг в парсере — отдельной задачей."
+expect pass  "second stop passes"     "Ещё нашёл ошибку. Отдельная задача." true
 expect pass  "empty reply"             ""
+
+# A section already printed: the continuation numbers on from it, not from 1.
+reason_has() { # what, needle, reply
+    if run "$3" | jq -r '.reason // ""' | grep -qF -- "$2"; then
+        pass=$((pass + 1)); [ "$QUIET" -eq 1 ] || printf '  ok    reason %s\n' "$1"
+    else
+        fail=$((fail + 1)); printf '  FAIL  reason %s  (no "%s")\n' "$1" "$2"
+    fi
+}
+reason_has "numbers on after 3 items" "numbered from 4" \
+    "Ещё нашёл баг в y.${NL}${NL}## Найдено попутно${NL}1. [связано] a — b. Исправить?${NL}2. [связано] c — d. Исправить?${NL}3. [связано] e — f. Исправить?"
+out="$(run "Ещё нашёл баг в y." | jq -r '.reason')"
+if ! printf '%s' "$out" | grep -qF "numbered from"; then pass=$((pass + 1)); [ "$QUIET" -eq 1 ] || echo "  ok    reason no section, no numbering hint"
+else fail=$((fail + 1)); echo "  FAIL  reason no section: numbering hint present"; fi
 
 # Disabled by env, and fails open on garbage input.
 out="$(FOUND_DEFECTS_GUARD=off run "Ещё нашёл ошибку. Отдельная задача.")"

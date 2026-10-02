@@ -34,13 +34,15 @@ SECTION = re.compile(
     r"^#{1,6}\s*(найдено попутно|найдено по ходу|попутно найдено|found along the way)\s*:?\s*$",
     re.I | re.M)
 HEADING = re.compile(r"^#{1,6}\s+\S", re.M)
+ITEM = re.compile(r"^\s*\d+[.)]\s+\S", re.M)
 # Proposals sit at the end and are read; "do it as a separate task" there is
 # the proposed work itself, not a buried finding. The scan stops at them.
 PROPOSALS = re.compile(r"^#{1,6}\s*(предлагаю|proposals)\s*:?\s*$", re.I | re.M)
 
 DEFER = [
     # Russian
-    r"отдельн\w+\s+(задач|вопрос|тикет|фикс)",
+    # singular only: "отдельные вопросы" counts questions, it defers nothing
+    r"отдельн(ая|ую|ой|ый|ым|ого)\s+(задач|вопрос|тикет|фикс)",
     r"(исправ|поправ|почин|чин)\w*\s+отдельно",
     r"(ещё|еще|также|заодно|попутно|кстати|параллельно)[,]?\s+(я\s+)?"
     r"(нашёл|нашел|нашла|нашлось|заметил|заметила|обнаружил|обнаружила|увидел|увидела)",
@@ -104,15 +106,39 @@ def check(reply):
     return problems
 
 
-def reason(problems):
+def section_items(reply):
+    """Number of items in the reply's last found-defects section, 0 if none."""
+    sections = list(SECTION.finditer(reply))
+    if not sections:
+        return 0
+    body = reply[sections[-1].end():]
+    nxt = HEADING.search(body)
+    if nxt:
+        body = body[:nxt.start()]
+    return len(ITEM.findall(body))
+
+
+def reason(problems, have=0):
     lines = "\n".join(f"- {p}" for p in problems)
+    # The continuation is a new message: it cannot merge into the section the
+    # reply already printed. Numbering on from it makes the two read as one
+    # list, and keeps "fix 2" unambiguous. The heading stays: the ledger finds
+    # the items by it.
+    if have:
+        scope = (
+            f"The reply already ends with that section, items 1-{have}. Output the "
+            "same heading again and only the defects missing from it, numbered from "
+            f"{have + 1}; do not repeat items 1-{have}. ")
+    else:
+        scope = ""
     return (
         "found-defects-guard (rules/found-defects-last.md):\n"
         f"{lines}\n\n"
         "Do not repeat your reply. Output only the final section, in the language "
         "of the session (Russian session: «## Найдено попутно»), one line per defect: "
         "[related]/[unrelated] tag translated, where, what is wrong, evidence or "
-        "\"unverified\", ending with the offer to fix (translated). Only the defects "
+        "\"unverified\", ending with the offer to fix (translated). "
+        f"{scope}Only the defects "
         "from the reply above: earlier findings are in the ledger (`findings list`) "
         "and are not repeated.\n"
         "If none of the quoted phrases is about a defect (false positive), output one "
@@ -170,7 +196,7 @@ def main():
     if not problems:
         return
     log(problems, payload)
-    sys.stdout.write(json.dumps({"decision": "block", "reason": reason(problems)}, ensure_ascii=False))
+    sys.stdout.write(json.dumps({"decision": "block", "reason": reason(problems, section_items(reply))}, ensure_ascii=False))
 
 
 if __name__ == "__main__":

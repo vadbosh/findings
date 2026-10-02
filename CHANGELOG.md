@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.4.1 — 2026-10-02
+
+### Fixed
+
+- **"отдельные вопросы" no longer reads as a deferral.** The pattern for
+  "отдельная задача / отдельный вопрос" matched any form of the adjective, so
+  a reply that counted questions ("записаны как отдельные вопросы") was sent
+  back for a section it already had. It now matches the singular forms only.
+  Both blocks in the tuning log were this case.
+- **A continuation numbers on from the section already printed.** When the
+  reply already ended with a found-defects section of N items, the guard still
+  asked for "the final section", and the model printed a second one numbered
+  from 1 — two lists both holding an item 2. The reason now says the section
+  exists and asks for the missing items only, numbered from N+1.
+
 ## 0.4.0 — 2026-10-01
 
 ### Added
