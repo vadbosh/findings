@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.3 — 2026-10-02
+
+### Changed
+
+- **`/findings` answers from the ledger alone.** A reply had cross-checked a
+  finding's status against a memsearch note and reported the disagreement.
+  The command now says the `findings` CLI is the only source, and that memory
+  notes, transcripts and other stores are neither consulted nor mentioned.
+
 ## 0.4.2 — 2026-10-02
 
 ### Changed

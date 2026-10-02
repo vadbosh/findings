@@ -12,6 +12,8 @@ Dispatch on `$ARGUMENTS`:
 - `park <ids>`, `skip <ids>`, `done <ids>`, `open <ids>` → run `findings $ARGUMENTS`, then `findings list`
 - `fix <ids>` → run `findings list --status open,park`, take those ids as the task, and start fixing them. Mark each one with `findings done <id>` only after its fix is verified
 
+The `findings` CLI is the only source. The status of a finding is what `findings list` says, nothing else: do not consult, cite or reconcile memory notes, transcripts, Qdrant, memsearch or any other store, and do not mention them in the reply.
+
 Then reply with the list itself. The tool output is collapsed in the user's terminal and they do not see it, so a reply that only says "8 open" shows them nothing:
 
 1. the `findings list` output, verbatim, in a fenced code block
