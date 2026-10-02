@@ -70,6 +70,9 @@ expect pass  "Out of scope as a name"  "В тикете обновил разд�
 expect pass  "отдельные вопросы (count)" "Обе строки записаны как отдельные вопросы. Готово."
 expect pass  "отдельных вопросах"      "На отдельных вопросах разброс от −56% до +21%."
 expect block "отдельной задачей"       "Сделал X. Баг в парсере — отдельной задачей."
+expect pass  "нашёл и исправил"        "По итогам поправил формулировку и попутно нашёл и исправил ложное срабатывание хука C."
+expect pass  "en: found and fixed"     "Done. I also found and fixed a stale cache key."
+expect block "нашёл, но не исправил"   "Сделал X. Попутно нашёл ошибку в парсере, её стоит посмотреть."
 expect pass  "second stop passes"     "Ещё нашёл ошибку. Отдельная задача." true
 expect pass  "empty reply"             ""
 
@@ -83,6 +86,10 @@ reason_has() { # what, needle, reply
 }
 reason_has "numbers on after 3 items" "numbered from 4" \
     "Ещё нашёл баг в y.${NL}${NL}## Найдено попутно${NL}1. [связано] a — b. Исправить?${NL}2. [связано] c — d. Исправить?${NL}3. [связано] e — f. Исправить?"
+# Claude Code shows the reason to the user: it stays at three lines.
+n="$(run "Ещё нашёл баг в y." | jq -r '.reason' | wc -l)"
+if [ "$n" -le 3 ]; then pass=$((pass + 1)); [ "$QUIET" -eq 1 ] || echo "  ok    reason fits in 3 lines"
+else fail=$((fail + 1)); echo "  FAIL  reason is $n lines"; fi
 out="$(run "Ещё нашёл баг в y." | jq -r '.reason')"
 if ! printf '%s' "$out" | grep -qF "numbered from"; then pass=$((pass + 1)); [ "$QUIET" -eq 1 ] || echo "  ok    reason no section, no numbering hint"
 else fail=$((fail + 1)); echo "  FAIL  reason no section: numbering hint present"; fi

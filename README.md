@@ -158,9 +158,12 @@ A phrase that defers a defect — "separate task", "also noticed", "out of scope
 "отдельная задача", "попутно нашёл" — in the body, outside code, quotes and the
 proposals section, continues the turn once and asks for the section alone, not
 the whole reply again. Over 1157 real replies it fired on 26 (2.2%), nearly all
-of them the very pattern it targets. A false positive costs one short line:
-`(found-defects-guard: false positive)`. Opencode cannot block the end of a
-turn, so there the rule is the only guard.
+of them the very pattern it targets. A false positive costs a three-line
+notice — Claude Code shows the hook's reason under "Stop hook error" — and one
+line from the model: `(found-defects-guard: false positive)`. A defect reported
+as found and fixed ("нашёл и исправил", "found and fixed") defers nothing and
+does not fire it. Opencode cannot block the end of a turn, so there the rule is
+the only guard.
 
 **Telling the model.** `findings-hook` adds one line before each prompt — open,
 urgent and parked counts for the project, each urgent finding, and the id of

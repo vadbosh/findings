@@ -44,8 +44,10 @@ DEFER = [
     # singular only: "отдельные вопросы" counts questions, it defers nothing
     r"отдельн(ая|ую|ой|ый|ым|ого)\s+(задач|вопрос|тикет|фикс)",
     r"(исправ|поправ|почин|чин)\w*\s+отдельно",
+    # "нашёл и исправил" reports a fix, it defers nothing
     r"(ещё|еще|также|заодно|попутно|кстати|параллельно)[,]?\s+(я\s+)?"
-    r"(нашёл|нашел|нашла|нашлось|заметил|заметила|обнаружил|обнаружила|увидел|увидела)",
+    r"(нашёл|нашел|нашла|нашлось|заметил|заметила|обнаружил|обнаружила|увидел|увидела)"
+    r"(?!\s+и\s+(сразу\s+)?(исправ|почин|поправ|устран))",
     r"не\s+связан\w*\s+с\s+(задач|текущ|основн)",
     r"(вне|за)\s+рамк\w+\s+(задач|текущ)",
     r"вне\s+(задачи|скоупа)",
@@ -54,7 +56,8 @@ DEFER = [
     # lower case only: "Out of scope" is also a ticket section name
     r"(?-i:\bout\s+of\s+scope\b)",
     r"\bunrelated\s+(to|bug|issue|problem)\b",
-    r"\b(also|separately|incidentally|btw|by\s+the\s+way)[,]?\s+(i\s+)?(noticed|found|spotted)\b",
+    r"\b(also|separately|incidentally|btw|by\s+the\s+way)[,]?\s+(i\s+)?(noticed|found|spotted)\b"
+    r"(?!\s+and\s+(fixed|repaired|corrected))",
     r"\b(fix|address|handle)(ed|ing)?\s+(it\s+|that\s+|this\s+)?separately\b",
     r"\bpre-?existing\s+(bug|issue|problem)\b",
 ]
@@ -75,9 +78,9 @@ def strip_quoted(text):
 
 
 def snippet(text, m):
-    start = max(text.rfind("\n", 0, m.start()) + 1, m.start() - 100)
+    start = max(text.rfind("\n", 0, m.start()) + 1, m.start() - 60)
     end = text.find("\n", m.end())
-    end = min(end if end != -1 else len(text), m.end() + 100)
+    end = min(end if end != -1 else len(text), m.end() + 60)
     return " ".join(text[start:end].split())
 
 
@@ -119,30 +122,23 @@ def section_items(reply):
 
 
 def reason(problems, have=0):
+    # Claude Code shows this text to the user as "Stop hook error", so it is
+    # kept to the problem and one instruction. The format of the section is in
+    # the rule file, which the model already has in context.
     lines = "\n".join(f"- {p}" for p in problems)
     # The continuation is a new message: it cannot merge into the section the
     # reply already printed. Numbering on from it makes the two read as one
     # list, and keeps "fix 2" unambiguous. The heading stays: the ledger finds
     # the items by it.
     if have:
-        scope = (
-            f"The reply already ends with that section, items 1-{have}. Output the "
-            "same heading again and only the defects missing from it, numbered from "
-            f"{have + 1}; do not repeat items 1-{have}. ")
+        shown = f"items 1-{have} are" if have > 1 else "item 1 is"
+        scope = f", numbered from {have + 1} ({shown} already shown)"
     else:
         scope = ""
     return (
-        "found-defects-guard (rules/found-defects-last.md):\n"
-        f"{lines}\n\n"
-        "Do not repeat your reply. Output only the final section, in the language "
-        "of the session (Russian session: «## Найдено попутно»), one line per defect: "
-        "[related]/[unrelated] tag translated, where, what is wrong, evidence or "
-        "\"unverified\", ending with the offer to fix (translated). "
-        f"{scope}Only the defects "
-        "from the reply above: earlier findings are in the ledger (`findings list`) "
-        "and are not repeated.\n"
-        "If none of the quoted phrases is about a defect (false positive), output one "
-        "line and nothing else: (found-defects-guard: false positive)"
+        f"found-defects-guard:\n{lines}\n"
+        f"Output only the found-defects section per rules/found-defects-last.md{scope}, "
+        "new defects only. Not a defect: output (found-defects-guard: false positive)"
     )
 
 

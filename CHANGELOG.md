@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.4.4 — 2026-10-02
+
+### Fixed
+
+- **"попутно нашёл и исправил" no longer fires the guard.** A defect found and
+  already fixed defers nothing; the pattern now skips a find followed by
+  "и исправил / починил / поправил / устранил", and "found and fixed" in
+  English. All three blocks in the tuning log were false positives, this one
+  the third.
+
+### Changed
+
+- **The guard's reason is three lines, not eight.** Claude Code shows it to
+  the user as "Stop hook error", so it now holds the quoted phrase and one
+  instruction; the section format is left to the rule file the model already
+  has. The quoted context around the phrase is 60 characters each side, down
+  from 100.
+
 ## 0.4.3 — 2026-10-02
 
 ### Changed
