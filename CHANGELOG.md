@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.2 — 2026-10-02
+
+### Changed
+
+- **`/findings` lists every decision, not only the recommended one.** Under
+  the ready-to-send answer it now prints one line with `fix`, `park`, `skip`,
+  `done` and `open`, each with what it does, so the verbs need not be
+  remembered.
+
 ## 0.4.1 — 2026-10-02
 
 ### Fixed
