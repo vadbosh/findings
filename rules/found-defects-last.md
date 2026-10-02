@@ -65,6 +65,11 @@ finding's path points at. From then on:
   `findings list`, then run `findings set <park|skip|done|open> <ids>`.
   "Fix" makes it work; mark it `done` once the fix is verified. `park` keeps a
   finding out of the chat and in the ledger
+- **a recorded finding is named by its ledger id, always.** Any later mention
+  — "the finding about X is still open", "send fix for it" — carries the `F`
+  number, with the ready command: `/findings fix F51`. Run `findings list` to
+  get the id; never tell the reader to look it up there. The reader asked
+  "where is it?" after a reply sent them to find it themselves
 
 `/findings` shows this session's digest, `/findings project` the whole project,
 `/findings all` everything; `/findings park 4-9` and the like change it.

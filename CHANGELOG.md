@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.5 — 2026-10-02
+
+### Changed
+
+- **A recorded finding is always named by its ledger id.** The rule now says
+  that any later mention of a finding carries its `F` number and the ready
+  command (`/findings fix F51`), and that the model runs `findings list` for
+  the id itself. A reply had sent the reader to look the id up.
+
 ## 0.4.4 — 2026-10-02
 
 ### Fixed
