@@ -155,5 +155,25 @@ check "ids continue after compaction and archiving" "F5" "$(f list --scope all -
 [ -e "$FINDINGS_DIR/ledger.jsonl.prev" ] && { pass=$((pass + 1)); [ "$QUIET" -eq 1 ] || echo "  ok    the previous ledger is kept as ledger.jsonl.prev"; } \
     || { fail=$((fail + 1)); echo "  FAIL  no ledger.jsonl.prev"; }
 
+# Reserved ids: the reply names its findings before the hook records them.
+res="$(f reserve 2 --session r1)"
+first="${res%% *}"; second="${res##* }"
+check "reserve hands out consecutive ids" "F" "$first $second"
+RES="## Найдено попутно${NL}${NL}1. $second: [связано] \`$A/sub/file.txt:20\` — второй — x. Исправить?${NL}"
+RES+="2. $first: [связано] \`$A/sub/file.txt:21\` — первый — x. Исправить?"
+out="$(printf '%s' "$RES" | f record --cwd "$A" --session r1)"
+check "an item is recorded under the id it carries"    "added $second" "$out"
+check "the other reserved id is used by its item"      "added $first" "$out"
+check "the id prefix is not kept in the text"          "$second [related] \`$A/sub/file.txt:20\` — второй" "$(f list --scope all)"
+res="$(f reserve --session r2)"
+out="$(printf '%s' "## Found along the way${NL}${NL}1. $res: [related] \`$A/sub/file.txt:22\` — foreign — x. Fix?" \
+    | f record --cwd "$A" --session r3)"
+absent "another session's reservation is not taken"    "added $res" "$out"
+out="$(printf '%s' "## Found along the way${NL}${NL}1. F9999: [related] \`$A/sub/file.txt:23\` — never reserved — x. Fix?" \
+    | f record --cwd "$A" --session r1)"
+absent "an unreserved id is not taken"                  "added F9999" "$out"
+check "the item is still recorded, under the next id"  "added F" "$out"
+check "reserve 0 is refused"                           "count of 1 or more" "$(f reserve 0)"
+
 echo "findings: passed $pass, failed $fail"
 [ "$fail" -eq 0 ]

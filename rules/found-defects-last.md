@@ -25,11 +25,16 @@ section. The example below shows the shape, not the words.
 ```markdown
 ## Found along the way
 
-1. [related] `path:line` — <what is wrong> — <evidence>. Fix?
-2. [unrelated] `/abs/path/in/other/repo` — <what is wrong> — unverified, suspicion. Fix?
-3. [urgent][unrelated] <prod alert or leaked secret> — <evidence>. Fix?
+1. F60: [related] `path:line` — <what is wrong> — <evidence>. Fix?
+2. F61: [unrelated] `/abs/path/in/other/repo` — <what is wrong> — unverified, suspicion. Fix?
+3. F62: [urgent][unrelated] <prod alert or leaked secret> — <evidence>. Fix?
 ```
 
+- **each item opens with its ledger id**, so the reader can answer
+  `/findings fix F60` at once. Before writing the section, run
+  `findings reserve N` (N = the number of items) and use the ids it prints, in
+  order. The Stop hook records each item under the id it carries. No shell, or
+  the command fails → write the items without ids; the hook numbers them
 - **one line per defect**: where, what is wrong, the evidence — the command
   or the line that shows it. A suspicion you did not check says "unverified"
 - **tag** each item `[related]` or `[unrelated]`, so the reader sees at once

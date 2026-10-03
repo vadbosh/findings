@@ -21,6 +21,8 @@ session happened to run in. It also carries the session that found it.
   findings add    --where W --text T [--tag related|unrelated|urgent]...
                   [--cwd DIR] [--session ID]
   findings record --cwd DIR [--session ID] < reply     parse the section
+  findings reserve [N] [--session ID]                  ids for the next section,
+                                                       written as "1. F60: ..."
   findings compact                                     one record per finding;
                                                        old done to the archive
   findings list --archive [--all]                      what compaction archived
@@ -153,6 +155,8 @@ def read(path):
                 op = e.get("op")
                 if op == "meta":
                     top = max(top, int(e.get("max_id", 0)))
+                elif op == "reserve":
+                    top = max([top] + [int(i) for i in e.get("ids", [])])
                 elif op == "add":
                     # A compacted record carries its status; an old one does not.
                     items[e["id"]] = dict(e, status=e.get("status", "open"),
@@ -164,6 +168,24 @@ def read(path):
     except FileNotFoundError:
         pass
     return items, top
+
+
+def reservations(path):
+    """[reserve events] from one log file: ids handed out before the reply
+    that uses them is written (`findings reserve`)."""
+    out = []
+    try:
+        with open(path, encoding="utf-8") as f:
+            for line in f:
+                try:
+                    e = json.loads(line)
+                except ValueError:
+                    continue
+                if e.get("op") == "reserve":
+                    out.append(e)
+    except FileNotFoundError:
+        pass
+    return out
 
 
 def load(project=None, archived=False):
@@ -196,16 +218,28 @@ def append(project, events):
         # compacted or archived id is never handed out again.
         everything, top = read(ledger())
         next_id = max(max(everything, default=0), top) + 1
+        # A reserved id is used when the item asks for it, it is still free,
+        # and it was reserved by the same session (or either side has none).
+        # Otherwise the item gets the next id, as before: a wrong number in
+        # the chat must not overwrite or block another finding.
+        held = {int(i): r.get("session") for r in reservations(ledger()) for i in r.get("ids", [])}
         items = {i: it for i, it in everything.items() if it.get("project") == project}
         out, lines = [], []
         for e in events:
             if e["op"] == "add":
+                want = e.pop("want", None)
                 dup = duplicate(items, e)
                 if dup:
                     out.append((dup, False))
                     continue
-                e = dict(e, id=next_id, project=project)
-                next_id += 1
+                owner = held.get(want, "-")
+                if (want is not None and want not in everything and owner != "-"
+                        and (not owner or not e.get("session") or owner == e.get("session"))):
+                    e = dict(e, id=want, project=project)
+                    everything[want] = e
+                else:
+                    e = dict(e, id=next_id, project=project)
+                    next_id += 1
                 items[e["id"]] = dict(e, status="open")
                 out.append((e["id"], True))
             lines.append(json.dumps(e, ensure_ascii=False) + "\n")
@@ -243,6 +277,11 @@ def compact_locked():
     with open(tmp, "w", encoding="utf-8") as f:
         f.write(json.dumps({"op": "meta", "max_id": max(top, max(items, default=0))}) + "\n")
         f.writelines(json.dumps(r, ensure_ascii=False) + "\n" for r in keep)
+        # A reservation whose reply may not be recorded yet survives; an
+        # older one is only a gap in the numbering, which max_id already keeps.
+        fresh = time.time() - 86400
+        f.writelines(json.dumps(r, ensure_ascii=False) + "\n"
+                     for r in reservations(ledger()) if stamp(r.get("ts")) >= fresh)
     if os.path.exists(ledger()):
         shutil.copy2(ledger(), ledger() + ".prev")
         shutil.copymode(ledger(), tmp)
@@ -268,8 +307,14 @@ def duplicate(items, e):
 
 # ── parsing a reply ─────────────────────────────────────────────────────────
 
+RESERVED_ID = re.compile(r"^[`*]*F(\d+)[`*]*\s*:\s*")
+
+
 def parse_section(reply):
-    """[(tags, where, text)] from the reply's found-along-the-way section."""
+    """[(tags, where, text, id)] from the reply's found-along-the-way section.
+
+    id is the number an item opens with ("1. F60: [related] ..."), reserved
+    beforehand with `findings reserve`; None when the item carries none."""
     m = None
     for m in SECTION.finditer(reply):
         pass
@@ -285,6 +330,11 @@ def parse_section(reply):
         if not im:
             continue
         rest = im.group(1)
+        want = None
+        rm = RESERVED_ID.match(rest)
+        if rm:
+            want = int(rm.group(1))
+            rest = rest[rm.end():]
         tags = []
         tm = TAGS.match(rest)
         if tm:
@@ -296,7 +346,7 @@ def parse_section(reply):
         rest = OFFER.sub("", rest).strip()
         wm = re.match(r"`([^`]+)`", rest)
         where = wm.group(1) if wm else rest.split(" — ")[0].split(":")[0][:80]
-        out.append((tags, where.strip(), rest))
+        out.append((tags, where.strip(), rest, want))
     return out
 
 
@@ -309,10 +359,13 @@ def record(reply, cwd, session=None):
     # One item at a time, in the order of the reply: ids then follow the chat
     # numbering, so "item 2" of a reply is the next id after "item 1".
     added = []
-    for tags, where, text in parse_section(reply):
+    for tags, where, text, want in parse_section(reply):
         p = route(where, cwd)
-        [(i, new)] = append(p, [{"op": "add", "ts": now(), "session": session, "cwd": cwd,
-                                 "tags": tags, "where": where, "text": text}])
+        e = {"op": "add", "ts": now(), "session": session, "cwd": cwd,
+             "tags": tags, "where": where, "text": text}
+        if want is not None:
+            e["want"] = want
+        [(i, new)] = append(p, [e])
         if new:
             added.append((p, i))
     return added
@@ -381,7 +434,7 @@ def projects(archived=False):
 def main(argv):
     ap = argparse.ArgumentParser(prog="findings", description=__doc__.split("\n\n")[0])
     sub = ap.add_subparsers(dest="cmd")
-    for name in ("list", "count", "set", "add", "record", "compact"):
+    for name in ("list", "count", "set", "add", "record", "compact", "reserve"):
         s = sub.add_parser(name)
         s.add_argument("-p", "--project", default=None, help="a path inside the project (default: cwd)")
         if name == "list":
@@ -399,7 +452,9 @@ def main(argv):
             s.add_argument("--where", required=True)
             s.add_argument("--text", required=True)
             s.add_argument("--tag", action="append", default=[], choices=["related", "unrelated", "urgent"])
-        if name in ("add", "record"):
+        if name == "reserve":
+            s.add_argument("n", nargs="?", type=int, default=1, help="how many ids (default 1)")
+        if name in ("add", "record", "reserve"):
             s.add_argument("--cwd", default=os.getcwd())
             s.add_argument("--session", default=None)
     # `findings park 4-9` reads like the chat answer it comes from.
@@ -472,6 +527,18 @@ def main(argv):
             after = os.path.getsize(ledger())
         print(f"compacted: {n} findings — {kept} kept, {archived} archived; "
               f"{before // 1024} KiB -> {after // 1024} KiB")
+    elif a.cmd == "reserve":
+        if a.n < 1:
+            print("findings: reserve needs a count of 1 or more", file=sys.stderr)
+            return 2
+        with Locked():
+            everything, top = read(ledger())
+            first = max(max(everything, default=0), top) + 1
+            ids = list(range(first, first + a.n))
+            with open(ledger(), "a", encoding="utf-8") as f:
+                f.write(json.dumps({"op": "reserve", "ts": now(), "ids": ids,
+                                    "session": current_session(a.session)}) + "\n")
+        print(" ".join(f"F{i}" for i in ids))
     elif a.cmd == "record":
         for p, i in record(sys.stdin.read(), a.cwd, a.session):
             print(f"added F{i} — {p}")

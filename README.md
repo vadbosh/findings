@@ -189,6 +189,13 @@ appended; ids are global — F7 means one finding whatever the project, and an i
 is never handed out twice. Concurrent sessions take turns on a lock file
 (`flock`; `msvcrt` on Windows).
 
+**The id is in the chat from the start.** Before writing the section the model
+runs `findings reserve N` and opens each item with an id it got:
+`1. F60: [related] …`. The hook records the item under that id, so the reader
+can answer `/findings fix F60` without looking anything up. An id reserved by
+another session, or never reserved, is not taken: the item gets the next free
+one instead.
+
 **It does not grow without bound.** Once it passes 1 MiB it compacts itself:
 one record per finding at its current status, and `done` findings older than
 30 days move to `archive.jsonl` next to it. `skip` stays, because that is what

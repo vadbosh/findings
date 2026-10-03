@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.5.0 — 2026-10-03
+
+### Added
+
+- **A new finding carries its id in the chat.** `findings reserve N` hands out
+  the next N ids before the reply is written; each item of the section opens
+  with one (`1. F60: [related] …`), and the hook records the item under it.
+  The reader answers `/findings fix F60` straight from the reply. An id
+  reserved by another session, or never reserved, is not taken — the item gets
+  the next free id, as before. Reservations younger than a day survive
+  compaction. The rule asks for the ids; without a shell, items go without
+  them and are numbered by the hook.
+
 ## 0.4.6 — 2026-10-03
 
 ### Changed
