@@ -19,7 +19,7 @@ Then reply with the list itself. The tool output is collapsed in the user's term
 1. the `findings list` output, verbatim, in a fenced code block
 2. for each open item, one short line: your recommendation — fix, park or skip — and why
 3. one ready-to-send answer line, e.g. `fix 6,7,9 · park 8,10-12 · skip 13`
-4. one line with every decision the user can send instead, each with what it does, in the language of the session — the user should not have to remember the verbs:
-   `fix <ids>` fix now, marked done once verified · `park <ids>` defer, stays in the ledger, out of the chat · `skip <ids>` decline, never shown again · `done <ids>` already fixed · `open <ids>` back to open
+4. the mini-help, one line, translated into the language of the session — the same line the rule puts under the digest, so the user should not have to remember the verbs:
+   `fix — fix now · park — defer · skip — decline · done — already fixed · open — reopen`
 
 On an error, state it in one line instead.

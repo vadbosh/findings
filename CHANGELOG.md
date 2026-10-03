@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.4.6 — 2026-10-03
+
+### Changed
+
+- **Every digest ends with the same two lines.** The rule now fixes them: a
+  ready answer from the real ids, then a one-line mini-help naming `fix`,
+  `park`, `skip`, `done` and `open`. A closing digest had improvised its own
+  hint with two verbs only. `/findings` uses the same one-line mini-help in
+  place of its five-line list.
+
 ## 0.4.5 — 2026-10-02
 
 ### Changed

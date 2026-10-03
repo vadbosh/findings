@@ -59,7 +59,14 @@ finding's path points at. From then on:
   Run `findings list` — this session's findings, whatever project they went
   to — and put its output in the section, instead of new items that are
   already in it. Where the shell has no session id (Codex, Opencode), pass
-  `--session <id>` from the hook's "This session (<id>)" line
+  `--session <id>` from the hook's "This session (<id>)" line. The digest
+  ends with exactly two lines, translated into the language of the session:
+  a ready answer built from the real ids, then the mini-help, so the reader
+  never has to remember the verbs:
+  ```
+  Decide in one line: /findings park F10-F13 · fix F18
+  fix — fix now · park — defer · skip — decline · done — already fixed · open — reopen
+  ```
 - **the reader decides in one line**: "fix 3", "park 4-9", "skip 2", in chat
   numbers or ledger ids (`F12`). Map chat numbers to ledger ids with
   `findings list`, then run `findings set <park|skip|done|open> <ids>`.
