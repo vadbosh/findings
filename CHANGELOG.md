@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.5.1 — 2026-10-03
+
+### Fixed
+
+- **The README's guard figure is measured again, and says how.** "26 of 1157
+  replies, nearly all on target" had no recorded method, and the live log
+  disagreed (three blocks, all false). Replayed over every Claude Code reply on
+  the machine: 53 of 3236 (1.6%), about seven in ten real when read one by
+  one, most of them from before the rule.
+
 ## 0.5.0 — 2026-10-03
 
 ### Added
