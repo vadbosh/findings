@@ -161,7 +161,10 @@ def ledger_record(reply, payload):
 
     Runs on every stop, the continuation included: that is the reply the
     section was added to. Best-effort — a ledger failure never blocks.
-    FINDINGS_RECORD=off is honoured inside findings.record()."""
+    FINDINGS_RECORD=off is honoured inside findings.record_items().
+
+    Returns the notice to show the user — chat number, id and path of each
+    item — when the reply did not carry the ids itself; "" otherwise."""
     try:
         sys.dont_write_bytecode = True
         import importlib.util
@@ -171,9 +174,11 @@ def ledger_record(reply, payload):
         spec = importlib.util.spec_from_loader("findings", loader)
         findings = importlib.util.module_from_spec(spec)
         loader.exec_module(findings)
-        findings.record(reply, payload.get("cwd") or os.getcwd(), payload.get("session_id"))
+        items = findings.record_items(reply, payload.get("cwd") or os.getcwd(),
+                                      payload.get("session_id"))
+        return findings.recorded_notice(items)
     except Exception:
-        pass
+        return ""
 
 
 def main():
@@ -183,16 +188,20 @@ def main():
         return
     # Recording comes first: FOUND_DEFECTS_GUARD=off turns off the check, not
     # the ledger. FINDINGS_RECORD=off is the switch for that.
-    ledger_record(reply, payload)
-    if os.environ.get("FOUND_DEFECTS_GUARD", "").lower() == "off":
-        return
-    if payload.get("stop_hook_active"):
-        return
-    problems = check(reply)
-    if not problems:
-        return
-    log(problems, payload)
-    sys.stdout.write(json.dumps({"decision": "block", "reason": reason(problems, section_items(reply))}, ensure_ascii=False))
+    # The notice (which F number each item got) is shown even with the check
+    # off: it is part of recording, not of the check.
+    out = {}
+    notice = ledger_record(reply, payload)
+    if notice:
+        out["systemMessage"] = notice
+    if (os.environ.get("FOUND_DEFECTS_GUARD", "").lower() != "off"
+            and not payload.get("stop_hook_active")):
+        problems = check(reply)
+        if problems:
+            log(problems, payload)
+            out.update(decision="block", reason=reason(problems, section_items(reply)))
+    if out:
+        sys.stdout.write(json.dumps(out, ensure_ascii=False))
 
 
 if __name__ == "__main__":

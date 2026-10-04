@@ -201,6 +201,19 @@ can answer `/findings fix F60` without looking anything up. An id reserved by
 another session, or never reserved, is not taken: the item gets the next free
 one instead.
 
+The model does not always do it. When an item comes without its id, gets a
+different one, or turns out to be already in the ledger, the hook shows which
+number each item got — under the reply, as a notice, without blocking it:
+
+```
+findings recorded:
+  1. F76  /home/repos/ide-sessions/bin/agent-history:152
+  2. F45  /etc/apache2/sites-available/matroluxe.com.conf  (already recorded: skip)
+```
+
+Claude Code shows it; Codex accepts the same field (`systemMessage`); the
+Opencode plugin has no way to show it.
+
 **It does not grow without bound.** Once it passes 1 MiB it compacts itself:
 one record per finding at its current status, and `done` findings older than
 30 days move to `archive.jsonl` next to it. `skip` stays, because that is what

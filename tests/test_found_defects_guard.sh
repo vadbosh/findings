@@ -36,7 +36,8 @@ run() { # reply, [stop_hook_active]
 expect() { # pass|block, what, reply, [stop_hook_active]
     local out got
     out="$(run "$3" "${4:-false}")"
-    if [ -z "$out" ]; then got=pass
+    # A notice alone (systemMessage, no decision) still lets the reply end.
+    if [ -z "$out" ] || printf '%s' "$out" | jq -e 'has("decision") | not' >/dev/null 2>&1; then got=pass
     elif printf '%s' "$out" | jq -e '.decision == "block"' >/dev/null 2>&1; then got=block
     else got="unexpected: $out"; fi
     if [ "$got" = "$1" ]; then
@@ -93,6 +94,19 @@ else fail=$((fail + 1)); echo "  FAIL  reason is $n lines"; fi
 out="$(run "Ещё нашёл баг в y." | jq -r '.reason')"
 if ! printf '%s' "$out" | grep -qF "numbered from"; then pass=$((pass + 1)); [ "$QUIET" -eq 1 ] || echo "  ok    reason no section, no numbering hint"
 else fail=$((fail + 1)); echo "  FAIL  reason no section: numbering hint present"; fi
+
+# The notice: which F number each item got, when the reply did not say.
+notice() { run "$1" | jq -r '.systemMessage // ""'; }
+msg="$(notice "Готово.${NL}${NL}## Найдено попутно${NL}1. [связано] \`/tmp/n1.txt:3\` — без номера — x. Исправить?")"
+if printf '%s' "$msg" | grep -qE '^  1\. F[0-9]+  /tmp/n1\.txt:3$'; then pass=$((pass + 1)); [ "$QUIET" -eq 1 ] || echo "  ok    notice maps chat number to id and path"
+else fail=$((fail + 1)); echo "  FAIL  notice: $msg"; fi
+msg="$(notice "Готово.${NL}${NL}## Найдено попутно${NL}1. [связано] \`/tmp/n1.txt:3\` — без номера — x. Исправить?")"
+if printf '%s' "$msg" | grep -q '(already recorded: open)'; then pass=$((pass + 1)); [ "$QUIET" -eq 1 ] || echo "  ok    notice marks an item already in the ledger"
+else fail=$((fail + 1)); echo "  FAIL  duplicate notice: $msg"; fi
+id="$(FINDINGS_DIR="$FINDINGS_DIR" "$HERE/../bin/findings" reserve --session t)"
+msg="$(notice "Готово.${NL}${NL}## Найдено попутно${NL}1. $id: [связано] \`/tmp/n2.txt:4\` — с номером — x. Исправить?")"
+if [ -z "$msg" ]; then pass=$((pass + 1)); [ "$QUIET" -eq 1 ] || echo "  ok    no notice when every item carries its id"
+else fail=$((fail + 1)); echo "  FAIL  notice despite ids: $msg"; fi
 
 # Disabled by env, and fails open on garbage input.
 out="$(FOUND_DEFECTS_GUARD=off run "Ещё нашёл ошибку. Отдельная задача.")"

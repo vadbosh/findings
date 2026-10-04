@@ -350,7 +350,10 @@ def parse_section(reply):
     return out
 
 
-def record(reply, cwd, session=None):
+def record_items(reply, cwd, session=None):
+    """Record the reply's section; one dict per item, in the order of the reply:
+    n (chat number), id, new, want (the id the item carried, or None), where,
+    status (of the existing finding when the item was a duplicate)."""
     # FINDINGS_RECORD=off is checked here, not in the callers: the Stop hook
     # and the Opencode plugin both end up in this function, so the switch
     # means the same thing in every assistant.
@@ -358,17 +361,36 @@ def record(reply, cwd, session=None):
         return []
     # One item at a time, in the order of the reply: ids then follow the chat
     # numbering, so "item 2" of a reply is the next id after "item 1".
-    added = []
-    for tags, where, text, want in parse_section(reply):
+    out = []
+    for n, (tags, where, text, want) in enumerate(parse_section(reply), start=1):
         p = route(where, cwd)
         e = {"op": "add", "ts": now(), "session": session, "cwd": cwd,
              "tags": tags, "where": where, "text": text}
         if want is not None:
             e["want"] = want
         [(i, new)] = append(p, [e])
-        if new:
-            added.append((p, i))
-    return added
+        status = None if new else load().get(i, {}).get("status")
+        out.append({"n": n, "id": i, "new": new, "want": want, "where": where,
+                    "project": p, "status": status})
+    return out
+
+
+def record(reply, cwd, session=None):
+    """[(project, id)] of the findings the reply added."""
+    return [(r["project"], r["id"]) for r in record_items(reply, cwd, session) if r["new"]]
+
+
+def recorded_notice(items):
+    """The line the Stop hook shows when the chat cannot be trusted to carry
+    the ids: some item came without one, or got a different one, or was
+    already in the ledger. Empty when every item carries the id it got."""
+    if all(r["new"] and r["want"] == r["id"] for r in items):
+        return ""
+    lines = ["findings recorded:"]
+    for r in items:
+        tail = "" if r["new"] else f"  (already recorded: {r['status']})"
+        lines.append(f"  {r['n']}. F{r['id']}  {r['where']}{tail}")
+    return "\n".join(lines)
 
 
 # ── output ──────────────────────────────────────────────────────────────────

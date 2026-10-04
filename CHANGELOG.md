@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.6.0 — 2026-10-04
+
+### Added
+
+- **The hook says which F number each item got, when the reply did not.**
+  A session started after 0.5.0 still wrote its items without ids: the rule
+  asks the model to run `findings reserve`, and it did not. Now, when an item
+  comes without its id, gets a different one, or is already in the ledger,
+  the Stop hook shows a notice under the reply — chat number, id and path per
+  item, `(already recorded: <status>)` for a duplicate. It does not block the
+  reply. Silent when every item carries the id it was recorded under.
+
 ## 0.5.1 — 2026-10-03
 
 ### Fixed
