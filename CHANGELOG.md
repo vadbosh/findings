@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.8.5 — 2026-10-04
+
+### Fixed
+
+- **Both READMEs no longer retell the changelog.** "The three blocks in the
+  live log were all false positives, fixed in 0.4.1 and 0.4.4" told the reader
+  about versions they do not have; the paragraph keeps the measurement and
+  what a false positive looks like.
+
 ## 0.8.4 — 2026-10-04
 
 ### Fixed

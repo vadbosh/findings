@@ -162,11 +162,9 @@ the whole reply again. Replaying every Claude Code reply on the author's
 machine on 2026-10-03 showed that the hook would have fired on 53 of 3236
 (1.6%). Read one by one, about seven in ten of those were a real deferred
 finding. The rest were a debugging step ("found why the commands failed") or a
-proposal ("keep layer 3 as a separate task"). Most of those replies predate the rule; once it was in place,
-the three blocks in the live log were all false positives, fixed in 0.4.1 and
-0.4.4. A false positive costs a three-line
-notice — Claude Code shows the hook's reason under "Stop hook error" — and one
-line from the model: `(found-defects-guard: false positive)`. A defect reported
+proposal ("keep layer 3 as a separate task"). A false positive costs a
+three-line notice — Claude Code shows the hook's reason under "Stop hook
+error" — and one line from the model: `(found-defects-guard: false positive)`. A defect reported
 as found and fixed ("нашёл и исправил", "found and fixed") defers nothing and
 does not fire it. Opencode cannot block the end of a turn, so there the rule is
 the only guard.
