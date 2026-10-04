@@ -158,11 +158,11 @@ Codex has no user slash commands: ask "show findings", or run `findings list`.
 A phrase that defers a defect — "separate task", "also noticed", "out of scope",
 "отдельная задача", "попутно нашёл" — in the body, outside code, quotes and the
 proposals section, continues the turn once and asks for the section alone, not
-the whole reply again. Replayed over every Claude Code reply on the author's
-machine on 2026-10-03, it would have fired on 53 of 3236 (1.6%); read one by
-one, about seven in ten were a real deferred finding, the rest a debugging
-step ("found why the commands failed") or a proposal ("keep layer 3 as a
-separate task"). Most of those replies predate the rule; once it was in place,
+the whole reply again. Replaying every Claude Code reply on the author's
+machine on 2026-10-03 showed that the hook would have fired on 53 of 3236
+(1.6%). Read one by one, about seven in ten of those were a real deferred
+finding. The rest were a debugging step ("found why the commands failed") or a
+proposal ("keep layer 3 as a separate task"). Most of those replies predate the rule; once it was in place,
 the three blocks in the live log were all false positives, fixed in 0.4.1 and
 0.4.4. A false positive costs a three-line
 notice — Claude Code shows the hook's reason under "Stop hook error" — and one

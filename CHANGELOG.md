@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.8.3 — 2026-10-04
+
+### Fixed
+
+- **README.md:** "Replayed over every Claude Code reply…, it would have fired"
+  had a dangling participle — the replies were replayed, not the hook — and ran
+  54 words. It is three sentences now. Found by a docs-techwriter review of the
+  English READMEs.
+
 ## 0.8.2 — 2026-10-04
 
 ### Fixed
