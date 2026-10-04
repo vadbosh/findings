@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.8.2 — 2026-10-04
+
+### Fixed
+
+- **README.RU.md reads as Russian in four places**, found by a docs-techwriter
+  review: «хук перед запросом сообщает ID модели» read as "the model's ID"
+  where it meant "tells the model the session ID"; an elliptic «То же с…»; a
+  dangling «его»; «Бесконечно он не растёт», with a pronoun for the ledger. The
+  English README is unchanged.
+
 ## 0.8.1 — 2026-10-04
 
 ### Fixed
