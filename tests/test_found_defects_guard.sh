@@ -129,6 +129,27 @@ msg="$(notice "Готово.${NL}${NL}## Найдено попутно${NL}  $h1
 if [ -z "$msg" ]; then pass=$((pass + 1)); [ "$QUIET" -eq 1 ] || echo "  ok    help present: the hook stays silent"
 else fail=$((fail + 1)); echo "  FAIL  help present, still: $msg"; fi
 
+# Heading variants: "Найдено по пути" was not recognised and nothing was recorded.
+msg="$(notice "Готово.${NL}${NL}## Найдено по пути${NL}1. [связано] \`/tmp/v1.txt:1\` — вариант заголовка — x. Исправить?")"
+check_msg "heading «Найдено по пути» is a section" "v1.txt:1 — вариант заголовка" "$msg"
+
+# A section written mid-turn: the Stop payload holds only the last text block,
+# the transcript holds the whole turn.
+TR="$(mktemp)"
+jq -nc '{type:"user",message:{content:"сделай X"}}' >> "$TR"
+jq -nc --arg t "Сделал.${NL}${NL}## Найдено попутно${NL}1. [связано] \`/tmp/mid.txt:7\` — раздел посреди хода — x. Исправить?" \
+    '{type:"assistant",message:{content:[{type:"text",text:$t},{type:"tool_use",name:"AskUserQuestion"}]}}' >> "$TR"
+jq -nc '{type:"user",message:{content:[{type:"tool_result",content:"ok"}]}}' >> "$TR"
+jq -nc '{type:"assistant",message:{content:[{type:"text",text:"Готово, правки внесены."}]}}' >> "$TR"
+out="$(jq -nc --arg tp "$TR" '{hook_event_name:"Stop",session_id:"t",cwd:"/tmp",stop_hook_active:false,transcript_path:$tp,last_assistant_message:"Готово, правки внесены."}' | "$GUARD")"
+check_msg "a mid-turn section is recorded from the transcript" "mid.txt:7 — раздел посреди хода" "$(printf '%s' "$out" | jq -r '.systemMessage // ""')"
+jq -nc '{type:"user",message:{content:"следующий вопрос"}}' >> "$TR"
+jq -nc '{type:"assistant",message:{content:[{type:"text",text:"Ответ без раздела."}]}}' >> "$TR"
+out="$(jq -nc --arg tp "$TR" '{hook_event_name:"Stop",session_id:"t",cwd:"/tmp",stop_hook_active:false,transcript_path:$tp,last_assistant_message:"Ответ без раздела."}' | "$GUARD")"
+if [ -z "$out" ]; then pass=$((pass + 1)); [ "$QUIET" -eq 1 ] || echo "  ok    an earlier turn's section is not read again"
+else fail=$((fail + 1)); echo "  FAIL  earlier turn read again: $out"; fi
+rm -f "$TR"
+
 # Disabled by env, and fails open on garbage input.
 out="$(FOUND_DEFECTS_GUARD=off run "Ещё нашёл ошибку. Отдельная задача.")"
 if [ -z "$out" ]; then pass=$((pass + 1)); [ "$QUIET" -eq 1 ] || echo "  ok    pass   FOUND_DEFECTS_GUARD=off"

@@ -74,7 +74,7 @@ DIR = os.environ.get("FINDINGS_DIR") or os.path.join(
 STATUSES = ("open", "park", "skip", "done")
 
 SECTION = re.compile(
-    r"^#{1,6}\s*(найдено попутно|найдено по ходу|попутно найдено|found along the way)\s*:?\s*$",
+    r"^#{1,6}\s*(найдено\s+(попутно|по\s+ходу|по\s+пути|по\s+дороге|заодно)|попутно\s+найдено|попутные\s+находки|found\s+(along|on)\s+the\s+way)\s*:?\s*$",
     re.I | re.M)
 HEADING = re.compile(r"^#{1,6}\s+\S", re.M)
 ITEM = re.compile(r"^\s*\d+[.)]\s+(.*\S)\s*$")

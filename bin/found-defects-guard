@@ -31,7 +31,7 @@ import sys
 import time
 
 SECTION = re.compile(
-    r"^#{1,6}\s*(найдено попутно|найдено по ходу|попутно найдено|found along the way)\s*:?\s*$",
+    r"^#{1,6}\s*(найдено\s+(попутно|по\s+ходу|по\s+пути|по\s+дороге|заодно)|попутно\s+найдено|попутные\s+находки|found\s+(along|on)\s+the\s+way)\s*:?\s*$",
     re.I | re.M)
 HEADING = re.compile(r"^#{1,6}\s+\S", re.M)
 ITEM = re.compile(r"^\s*\d+[.)]\s+\S", re.M)
@@ -156,6 +156,42 @@ def log(problems, payload):
         pass
 
 
+def turn_texts(payload, reply):
+    """Every assistant text of the turn that just ended, oldest first.
+
+    The Stop payload carries only the last text block. A section written
+    mid-turn — before an AskUserQuestion, before more tool calls — is not in
+    it, and was never recorded (F87, 2026-10-04). Claude Code's transcript has
+    the whole turn: the texts after the last real user prompt. Any other
+    shape (Codex rollout, no transcript) falls back to the last text alone."""
+    texts = []
+    path = payload.get("transcript_path")
+    try:
+        with open(path, encoding="utf-8", errors="replace") as f:
+            for line in f:
+                try:
+                    e = json.loads(line)
+                except ValueError:
+                    continue
+                if e.get("isSidechain"):
+                    continue
+                msg = e.get("message") or {}
+                c = msg.get("content")
+                if e.get("type") == "user" and not e.get("isMeta"):
+                    if isinstance(c, str) or (isinstance(c, list) and any(
+                            isinstance(b, dict) and b.get("type") == "text" for b in c)):
+                        texts = []
+                elif e.get("type") == "assistant" and isinstance(c, list):
+                    texts += [b["text"] for b in c
+                              if isinstance(b, dict) and b.get("type") == "text" and b.get("text")]
+    except (OSError, TypeError):
+        texts = []
+    # The last block may not be in the file yet when the hook runs.
+    if reply.strip() not in (t.strip() for t in texts):
+        texts.append(reply)
+    return texts
+
+
 def ledger_record(reply, payload):
     """Write the reply's found-along-the-way items to bin/findings' ledger.
 
@@ -226,10 +262,16 @@ def main():
     # The notice (which F number each item got) is shown even with the check
     # off: it is part of recording, not of the check.
     out = {}
-    notice, ids = ledger_record(reply, payload)
-    notice = "\n".join(p for p in (notice, help_notice(reply, ids)) if p)
-    if notice:
-        out["systemMessage"] = notice
+    parts = []
+    for text in turn_texts(payload, reply):
+        if not SECTION.search(text):
+            continue
+        notice, ids = ledger_record(text, payload)
+        for p in (notice, help_notice(text, ids)):
+            if p and p not in parts:
+                parts.append(p)
+    if parts:
+        out["systemMessage"] = "\n".join(parts)
     if (os.environ.get("FOUND_DEFECTS_GUARD", "").lower() != "off"
             and not payload.get("stop_hook_active")):
         problems = check(reply)

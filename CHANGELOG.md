@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.8.1 — 2026-10-04
+
+### Fixed
+
+- **A section under another heading is recorded.** "## Найдено по пути"
+  matched none of the known headings, so F90–F92 were reserved, shown in the
+  chat, and never written; `findings fix F90` then said "no such id". The
+  parser now takes "найдено попутно / по ходу / по пути / по дороге /
+  заодно", "попутно найдено", "попутные находки", "found along / on the
+  way"; the rule names the one heading to use per language.
+- **A section written mid-turn is recorded.** The Stop payload carries only
+  the last text block; a section followed by AskUserQuestion or more tool
+  calls was never seen (F87). In Claude Code the hook now reads every
+  assistant text of the turn from the transcript. Codex still gets the last
+  block only; the rule asks for the section at the very end of the turn.
+
 ## 0.8.0 — 2026-10-04
 
 ### Added

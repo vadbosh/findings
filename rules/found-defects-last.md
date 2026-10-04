@@ -22,6 +22,14 @@ reply. This file is in English; the output is not. The heading, the tags, the
 offer to fix and every item are translated — a Russian session gets a Russian
 section. The example below shows the shape, not the words.
 
+**The heading is fixed, not paraphrased**: `## Found along the way`, in Russian
+`## Найдено попутно`. The hook finds the section by it; "Найдено по пути" once
+went unrecorded.
+
+**Write the section at the very end of the turn**, after the last tool call. A
+section followed by more work is still read from the transcript in Claude
+Code, but nowhere else.
+
 ```markdown
 ## Found along the way
 
