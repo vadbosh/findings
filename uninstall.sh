@@ -8,6 +8,11 @@
 # and installing again picks it up where it was. Delete it by hand if you mean to.
 set -euo pipefail
 
+# Not ${1/#$HOME/\~}: bash 3.2, the one macOS ships, keeps the backslash and
+# prints \~/.claude — measured in the bash:3.2 image.
+tilde() { case "$1" in "$HOME"*) printf '~%s' "${1#"$HOME"}" ;; *) printf '%s' "$1" ;; esac; }
+
+
 SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BIN_DIR="$HOME/.local/bin"
 DRY_RUN=0
@@ -16,8 +21,8 @@ DRY_RUN=0
 say() { printf '%s\n' "$*"; }
 remove_file() {
     [ -e "$1" ] || [ -L "$1" ] || return 0
-    if [ "$DRY_RUN" -eq 1 ]; then say "    would remove ${1/#$HOME/\~}"; return; fi
-    rm -f "$1"; say "    - ${1/#$HOME/\~}"
+    if [ "$DRY_RUN" -eq 1 ]; then say "    would remove $(tilde "$1")"; return; fi
+    rm -f "$1"; say "    - $(tilde "$1")"
 }
 
 for ide in claude codex opencode; do

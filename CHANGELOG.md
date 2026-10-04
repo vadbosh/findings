@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.8.4 — 2026-10-04
+
+### Fixed
+
+- **macOS: in `install.sh`, `uninstall.sh` and `release.sh`, paths printed as `~/…` came out as `\~/…` under bash 3.2 — the `/bin/bash`
+  macOS still ships — because `${x/#$HOME/\~}` keeps the backslash before bash
+  4.3. A `tilde` function replaces it; measured in the `bash:3.2` image.**
+
 ## 0.8.3 — 2026-10-04
 
 ### Fixed

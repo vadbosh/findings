@@ -23,6 +23,11 @@
 # never touched. Nothing outside $HOME is written.
 set -euo pipefail
 
+# Not ${1/#$HOME/\~}: bash 3.2, the one macOS ships, keeps the backslash and
+# prints \~/.claude — measured in the bash:3.2 image.
+tilde() { case "$1" in "$HOME"*) printf '~%s' "${1#"$HOME"}" ;; *) printf '%s' "$1" ;; esac; }
+
+
 SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BIN_DIR="$HOME/.local/bin"
 STATE="${XDG_STATE_HOME:-$HOME/.local/state}/findings"
@@ -54,9 +59,9 @@ STAMP="$(date +%Y%m%d-%H%M%S)"
 install_file() {
     local src="$1" dst="$2" mode="${3:-644}"
     if [ -f "$dst" ] && [ ! -L "$dst" ] && cmp -s "$src" "$dst"; then
-        say "    = ${dst/#$HOME/\~}"; return
+        say "    = $(tilde "$dst")"; return
     fi
-    if [ "$DRY_RUN" -eq 1 ]; then say "    would write ${dst/#$HOME/\~}"; return; fi
+    if [ "$DRY_RUN" -eq 1 ]; then say "    would write $(tilde "$dst")"; return; fi
     mkdir -p "$(dirname "$dst")"
     if [ -e "$dst" ] || [ -L "$dst" ]; then
         if [ -f "$dst" ] && [ ! -L "$dst" ]; then
@@ -64,9 +69,9 @@ install_file() {
             cp -p "$dst" "$STATE/backups/$(basename "$dst").bak.$STAMP"
         fi
         rm -f "$dst"
-        say "    ~ ${dst/#$HOME/\~}"
+        say "    ~ $(tilde "$dst")"
     else
-        say "    + ${dst/#$HOME/\~}"
+        say "    + $(tilde "$dst")"
     fi
     cp "$src" "$dst"
     chmod "$mode" "$dst"

@@ -11,6 +11,11 @@
 # including the last one: an installed copy that is behind is the copy that runs.
 set -uo pipefail
 
+# Not ${1/#$HOME/\~}: bash 3.2, the one macOS ships, keeps the backslash and
+# prints \~/.claude — measured in the bash:3.2 image.
+tilde() { case "$1" in "$HOME"*) printf '~%s' "${1#"$HOME"}" ;; *) printf '%s' "$1" ;; esac; }
+
+
 SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SRC" || exit 2
 
@@ -55,7 +60,7 @@ check() {
     while read -r src dst; do
         [ -e "$dst" ] || continue
         n=$((n + 1))
-        if ! cmp -s "$src" "$dst"; then echo "  installed:    ${dst/#$HOME/\~} differs from $src — ./install.sh"; stale=1; fi
+        if ! cmp -s "$src" "$dst"; then echo "  installed:    $(tilde "$dst") differs from $src — ./install.sh"; stale=1; fi
     done < <(installed)
     [ "$stale" -eq 0 ] && echo "  installed:    $n cop(ies), all identical to this checkout"
     [ "$stale" -eq 0 ] || bad=1
