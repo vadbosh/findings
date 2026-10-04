@@ -206,13 +206,19 @@ lib/wire.py               edits settings.json, hooks.json, opencode.json, AGENTS
 
 Модель делает это не всегда. Если пункт пришёл без номера, получил другой
 номер или такая находка уже есть в журнале, хук показывает под ответом, какой
-номер достался каждому пункту. Ответ при этом не блокируется:
+номер достался каждому пункту. Ответ при этом не блокируется. В каждой строке —
+имя файла и первые слова о том, что не так: в одном файле может быть несколько
+находок:
 
 ```
 findings recorded:
-  1. F76  /home/repos/ide-sessions/bin/agent-history:152
-  2. F45  /etc/apache2/sites-available/matroluxe.com.conf  (already recorded: skip)
+  1. F76  agent-history:152 — на этой машине у opencode не работает ни одна…
+  2. F45  matroluxe.com.conf — в <Directory /var/www/matroluxe/> указано Options…  (already recorded: skip)
 ```
+
+То же с двумя строками, которыми кончается любая секция, — готовым ответом и
+мини-подсказкой `fix · park · skip · done · open`. Если их нет, хук покажет их
+сам, с номерами этой секции.
 
 Claude Code это показывает; Codex принимает то же поле (`systemMessage`);
 у плагина Opencode такой возможности нет.

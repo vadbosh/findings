@@ -176,9 +176,44 @@ def ledger_record(reply, payload):
         loader.exec_module(findings)
         items = findings.record_items(reply, payload.get("cwd") or os.getcwd(),
                                       payload.get("session_id"))
-        return findings.recorded_notice(items)
+        return findings.recorded_notice(items), [r["id"] for r in items]
     except Exception:
+        return "", []
+
+
+HELP = {
+    "ru": ("Решить одной строкой: /findings fix|park|skip|done|open {ids}",
+           "fix — исправить · park — отложить · skip — отклонить · done — уже исправлено · open — вернуть"),
+    "en": ("Decide in one line: /findings fix|park|skip|done|open {ids}",
+           "fix — fix now · park — defer · skip — decline · done — already fixed · open — reopen"),
+}
+
+
+def help_notice(reply, ids):
+    """The ready answer and the mini-help, when the reply's section lacks them.
+
+    The rule asks for both under every section; a model forgets. Detected by
+    the verbs: a section that names neither `park` nor `skip` has no help.
+    The ids are those the hook just recorded, else the F numbers the section
+    lists (a digest). Russian when the section heading is."""
+    sections = list(SECTION.finditer(reply))
+    if not sections:
         return ""
+    last = sections[-1]
+    body = reply[last.end():]
+    nxt = HEADING.search(body)
+    if nxt:
+        body = body[:nxt.start()]
+    if re.search(r"\bpark\b", body) and re.search(r"\bskip\b", body):
+        return ""
+    if not ids:
+        ids = [int(i) for i in re.findall(r"^\s*(?:\d+[.)]\s+)?F(\d+)\b", body, re.M)]
+    if not ids:
+        return ""
+    ids = sorted(dict.fromkeys(ids))
+    lang = "ru" if re.search(r"[а-яё]", last.group(1), re.I) else "en"
+    answer, verbs = HELP[lang]
+    return answer.format(ids=",".join(f"F{i}" for i in ids)) + "\n" + verbs
 
 
 def main():
@@ -191,7 +226,8 @@ def main():
     # The notice (which F number each item got) is shown even with the check
     # off: it is part of recording, not of the check.
     out = {}
-    notice = ledger_record(reply, payload)
+    notice, ids = ledger_record(reply, payload)
+    notice = "\n".join(p for p in (notice, help_notice(reply, ids)) if p)
     if notice:
         out["systemMessage"] = notice
     if (os.environ.get("FOUND_DEFECTS_GUARD", "").lower() != "off"

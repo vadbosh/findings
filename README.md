@@ -203,13 +203,19 @@ one instead.
 
 The model does not always do it. When an item comes without its id, gets a
 different one, or turns out to be already in the ledger, the hook shows which
-number each item got — under the reply, as a notice, without blocking it:
+number each item got — under the reply, as a notice, without blocking it. Each
+line carries the file name and the first words of what is wrong, because
+several findings can sit in one file:
 
 ```
 findings recorded:
-  1. F76  /home/repos/ide-sessions/bin/agent-history:152
-  2. F45  /etc/apache2/sites-available/matroluxe.com.conf  (already recorded: skip)
+  1. F76  agent-history:152 — на этой машине у opencode не работает ни одна…
+  2. F45  matroluxe.com.conf — в <Directory /var/www/matroluxe/> указано Options…  (already recorded: skip)
 ```
+
+The same goes for the two lines every section ends with — the ready answer
+and the `fix · park · skip · done · open` mini-help. When a section lacks
+them, the hook shows them, with that section's ids.
 
 Claude Code shows it; Codex accepts the same field (`systemMessage`); the
 Opencode plugin has no way to show it.

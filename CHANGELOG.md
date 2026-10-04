@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.7.0 — 2026-10-04
+
+### Added
+
+- **The mini-help is under every section, and the hook backs it up.** The
+  rule asked for the ready answer and the `fix · park · skip · done · open`
+  line only under the closing digest, so a section of new findings came
+  without them. Now the rule asks for both under every section; when a
+  section names neither `park` nor `skip`, the Stop hook shows the two lines
+  under the reply itself, with the section's ids, in the heading's language.
+
+### Changed
+
+- **The notice says what each finding is, not only where.** A line was the
+  chat number, the id and the full path; with several findings in one file
+  that did not tell them apart. Now it is the chat number, the id, the file
+  name and the first ~60 characters of what is wrong:
+  `1. F79  2026-10-04.md:33 — сводка memsearch пишет «…`.
+
 ## 0.6.0 — 2026-10-04
 
 ### Added

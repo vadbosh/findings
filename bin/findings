@@ -371,7 +371,7 @@ def record_items(reply, cwd, session=None):
         [(i, new)] = append(p, [e])
         status = None if new else load().get(i, {}).get("status")
         out.append({"n": n, "id": i, "new": new, "want": want, "where": where,
-                    "project": p, "status": status})
+                    "text": text, "project": p, "status": status})
     return out
 
 
@@ -389,8 +389,22 @@ def recorded_notice(items):
     lines = ["findings recorded:"]
     for r in items:
         tail = "" if r["new"] else f"  (already recorded: {r['status']})"
-        lines.append(f"  {r['n']}. F{r['id']}  {r['where']}{tail}")
+        lines.append(f"  {r['n']}. F{r['id']}  {os.path.basename(r['where'].rstrip('/')) or r['where']}"
+                     f" — {gist(r['text'], r['where'])}{tail}")
     return "\n".join(lines)
+
+
+def gist(text, where, width=60):
+    """What is wrong, in a few words: the item text after its where, up to the
+    next " — ", without backticks. Several findings can share one file; the
+    file name alone does not tell them apart."""
+    rest = text
+    if rest.startswith(f"`{where}`"):
+        rest = rest[len(where) + 2:]
+    elif rest.startswith(where):
+        rest = rest[len(where):]
+    rest = rest.lstrip(" —-:").split(" — ")[0].replace("`", "").strip()
+    return rest if len(rest) <= width else rest[:width - 1].rstrip() + "…"
 
 
 # ── output ──────────────────────────────────────────────────────────────────

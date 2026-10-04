@@ -46,6 +46,15 @@ section. The example below shows the shape, not the words.
 - **every item ends with an offer to fix**: "Fix?"
 - **no ceiling** on the count, and no merging into the proposals list — the
   three-item limit of `proposals-at-the-end.md` does not apply here
+- **the section always ends with two lines**, translated into the language of
+  the session — under new findings and under the digest alike: a ready answer
+  built from the real ids, then the mini-help, so the reader never has to
+  remember the verbs:
+  ```
+  Decide in one line: /findings park F10-F13 · fix F18
+  fix — fix now · park — defer · skip — decline · done — already fixed · open — reopen
+  ```
+  When they are missing, the Stop hook shows them under the reply instead
 - **nothing found → no section.** Never invent an item to fill it
 
 ## Shown once; the ledger keeps it
@@ -65,13 +74,8 @@ finding's path points at. From then on:
   to — and put its output in the section, instead of new items that are
   already in it. Where the shell has no session id (Codex, Opencode), pass
   `--session <id>` from the hook's "This session (<id>)" line. The digest
-  ends with exactly two lines, translated into the language of the session:
-  a ready answer built from the real ids, then the mini-help, so the reader
-  never has to remember the verbs:
-  ```
-  Decide in one line: /findings park F10-F13 · fix F18
-  fix — fix now · park — defer · skip — decline · done — already fixed · open — reopen
-  ```
+  ends with the same two lines as any section: the ready answer and the
+  mini-help
 - **the reader decides in one line**: "fix 3", "park 4-9", "skip 2", in chat
   numbers or ledger ids (`F12`). Map chat numbers to ledger ids with
   `findings list`, then run `findings set <park|skip|done|open> <ids>`.
