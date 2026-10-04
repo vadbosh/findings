@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.8.0 — 2026-10-04
+
+### Added
+
+- **Several decisions in one line.** `findings skip F80 fix F85` and
+  `findings park 4-9 · fix 12` set every status in the line, and print the
+  `fix` ids for the assistant to work on; `/findings` takes the same line.
+  The mini-help has been suggesting this form since 0.7.0 (`park F10-F13 ·
+  fix F18`), and the CLI could not read it.
+
+### Fixed
+
+- **A bad answer no longer crashes the CLI or half-applies.** A word that is
+  not an id (`skip F2 fix F1` used to fail on "fix", a stray `-` likewise)
+  ended in a Python traceback. Now it is one line naming the word, and every
+  id is checked before anything is written: an unknown id anywhere in the
+  line changes nothing.
+
 ## 0.7.0 — 2026-10-04
 
 ### Added

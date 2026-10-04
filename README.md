@@ -133,6 +133,7 @@ Needs python 3.8+ and, for filing by repository, git. No packages.
 /findings all             # every project
 /findings park 4-9        # also: skip, done, open — ids like 3, F3, 4-9, 3,5
 /findings fix 3,5         # take them on as the task
+/findings skip F80 fix F85   # several decisions in one line; also with " · "
 
 findings list [--scope session|project|all] [--session ID] [--status open,park,skip,done|any] [-p PATH]
 findings count [-p PATH]  # one line, for hooks and prompts

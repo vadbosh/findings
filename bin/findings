@@ -18,6 +18,9 @@ session happened to run in. It also carries the session that found it.
                   [--status S,...]                     digest, open first
   findings count  [-p PATH]                            one line, for hooks
   findings set    STATUS ID...                          open|park|skip|done
+  findings VERB ID... [VERB ID...]                     the chat answer as is:
+                                                       `skip F80 fix F85`,
+                                                       `park 4-9 · fix 12`
   findings add    --where W --text T [--tag related|unrelated|urgent]...
                   [--cwd DIR] [--session ID]
   findings record --cwd DIR [--session ID] < reply     parse the section
@@ -463,6 +466,64 @@ def parse_ids(args):
     return ids
 
 
+VERBS = STATUSES + ("fix",)
+
+
+def decide(args):
+    """Apply a chat answer: one or more `verb ids` groups, e.g.
+    `skip F80 fix F85` or `park F10-F13 · fix F18`.
+
+    Statuses are set here; `fix` is not a status — its ids are printed for the
+    assistant, which fixes them and marks them `done` once verified. Every id
+    is checked before anything is written: a bad answer changes nothing."""
+    words = " ".join(args)
+    for sep in ("·", ";", "|"):
+        words = words.replace(sep, " ")
+    groups = []
+    for w in words.split():
+        if w.lower() in VERBS:
+            groups.append((w.lower(), []))
+            continue
+        if not groups:
+            print(f"findings: start with one of {', '.join(VERBS)}, e.g. `skip F80 fix F85`",
+                  file=sys.stderr)
+            return 2
+        try:
+            groups[-1][1].extend(parse_ids([w]))
+        except ValueError:
+            print(f"findings: not an id: {w!r} — write e.g. `skip F80 fix F85`", file=sys.stderr)
+            return 2
+    empty = [v for v, ids in groups if not ids]
+    if empty:
+        print(f"findings: no ids after `{empty[0]}`", file=sys.stderr)
+        return 2
+    items = load()
+    missing = [i for _, ids in groups for i in ids if i not in items]
+    if missing:
+        archived = load(archived=True)
+        gone = [i for i in missing if i in archived]
+        if gone:
+            print(f"findings: archived (done): {', '.join(f'F{i}' for i in gone)} — "
+                  "`findings list --archive`; record the defect again if it is back",
+                  file=sys.stderr)
+        rest = [i for i in missing if i not in archived]
+        if rest:
+            print(f"findings: no such id: {', '.join(f'F{i}' for i in rest)}", file=sys.stderr)
+        print("findings: nothing changed", file=sys.stderr)
+        return 2
+    events = [{"op": "set", "id": i, "ts": now(), "status": v}
+              for v, ids in groups if v != "fix" for i in ids]
+    if events:
+        append(None, events)
+    for v, ids in groups:
+        names = ", ".join(f"F{i}" for i in ids)
+        if v == "fix":
+            print(f"fix: {names} — for the assistant: fix, verify, then `findings done <id>`")
+        else:
+            print(f"{v}: {names}")
+    return 0
+
+
 def projects(archived=False):
     return sorted({it.get("project") for it in load(archived=archived).values() if it.get("project")})
 
@@ -493,9 +554,10 @@ def main(argv):
         if name in ("add", "record", "reserve"):
             s.add_argument("--cwd", default=os.getcwd())
             s.add_argument("--session", default=None)
-    # `findings park 4-9` reads like the chat answer it comes from.
-    if argv and argv[0] in STATUSES:
-        argv = ["set"] + argv
+    # `findings park 4-9` reads like the chat answer it comes from, and so does
+    # `findings skip F80 fix F85` — several decisions in one line.
+    if argv and argv[0].lower() in VERBS:
+        return decide(argv)
     a = ap.parse_args(argv)
     if not a.cmd:
         a = ap.parse_args(["list"] + argv)
@@ -534,22 +596,7 @@ def main(argv):
         open_, urgent, parked = counts(project)
         print(f"{len(open_)} open, {len(urgent)} urgent, {parked} parked — {project}")
     elif a.cmd == "set":
-        items = load()
-        ids = parse_ids(a.ids)
-        missing = [i for i in ids if i not in items]
-        if missing:
-            archived = load(archived=True)
-            gone = [i for i in missing if i in archived]
-            if gone:
-                print(f"findings: archived (done): {', '.join(f'F{i}' for i in gone)} — "
-                      "`findings list --archive`; record the defect again if it is back",
-                      file=sys.stderr)
-            rest = [i for i in missing if i not in archived]
-            if rest:
-                print(f"findings: no such id: {', '.join(f'F{i}' for i in rest)}", file=sys.stderr)
-            return 2
-        append(None, [{"op": "set", "id": i, "ts": now(), "status": a.status} for i in ids])
-        print(f"{a.status}: {', '.join(f'F{i}' for i in ids)}")
+        return decide([a.status] + a.ids)
     elif a.cmd == "add":
         p = route(a.where, a.cwd) if not a.project else project
         tags = list(dict.fromkeys(a.tag))

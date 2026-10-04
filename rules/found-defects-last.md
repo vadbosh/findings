@@ -78,7 +78,8 @@ finding's path points at. From then on:
   mini-help
 - **the reader decides in one line**: "fix 3", "park 4-9", "skip 2", in chat
   numbers or ledger ids (`F12`). Map chat numbers to ledger ids with
-  `findings list`, then run `findings set <park|skip|done|open> <ids>`.
+  `findings list`, then run the answer as is: `findings skip F80 fix F85` —
+  one line may hold several decisions; it sets every status or none.
   "Fix" makes it work; mark it `done` once the fix is verified. `park` keeps a
   finding out of the chat and in the ledger
 - **a recorded finding is named by its ledger id, always.** Any later mention

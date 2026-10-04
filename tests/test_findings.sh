@@ -175,5 +175,26 @@ absent "an unreserved id is not taken"                  "added F9999" "$out"
 check "the item is still recorded, under the next id"  "added F" "$out"
 check "reserve 0 is refused"                           "count of 1 or more" "$(f reserve 0)"
 
+# Several decisions in one line, as the chat answer is written.
+M="## Found along the way${NL}${NL}1. [related] \`$A/sub/file.txt:40\` — multi one — x. Fix?${NL}"
+M+="2. [related] \`$A/sub/file.txt:41\` — multi two — x. Fix?${NL}3. [related] \`$A/sub/file.txt:42\` — multi three — x. Fix?"
+mapfile -t mids < <(printf '%s' "$M" | f record --cwd "$A" --session m1 | sed -n 's/^added F\([0-9]*\).*/\1/p')
+m1="${mids[0]}" m2="${mids[1]}" m3="${mids[2]}"
+out="$(f skip "F$m1" fix "F$m2")"
+check "skip and fix in one line: skip applied"       "skip: F$m1" "$out"
+check "skip and fix in one line: fix handed over"    "fix: F$m2 — for the assistant" "$out"
+check "the fixed one stays open until done"          "F$m2 [related]" "$(f list -p "$A" --scope project --status open)"
+out="$(f park "F$m3" · open "F$m1")"
+check "the · separator works"                         "park: F$m3" "$out"
+check "both groups applied"                           "open: F$m1" "$out"
+out="$(f skip "F$m1" - это пример)"
+check "a word that is not an id is refused, no traceback" "not an id: '-'" "$out"
+absent "nothing changed by the refused line"          "skip: F$m1" "$out"
+check "F$m1 still open after the refused line"       "F$m1 [related]" "$(f list -p "$A" --scope project --status open)"
+out="$(f skip "F$m1" fix 99999)"
+check "an unknown id anywhere changes nothing"        "nothing changed" "$out"
+check "F$m1 still open after the unknown id"         "F$m1 [related]" "$(f list -p "$A" --scope project --status open)"
+check "a verb with no ids is refused"                 "no ids after \`fix\`" "$(f skip "F$m1" fix)"
+
 echo "findings: passed $pass, failed $fail"
 [ "$fail" -eq 0 ]

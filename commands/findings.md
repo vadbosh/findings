@@ -1,5 +1,5 @@
 ---
-description: Digest of defects found along the way (ledger of rules/found-defects-last.md), and decisions on them. Usage — /findings (this session) | /findings project | /findings all | /findings park|skip|done|open <ids> | /findings fix <ids>. Ids are ledger ids (F12, 12, 4-9, 3,5).
+description: Digest of defects found along the way (ledger of rules/found-defects-last.md), and decisions on them. Usage — /findings (this session) | /findings project | /findings all | /findings park|skip|done|open|fix <ids> — several in one line too (skip F80 fix F85). Ids are ledger ids (F12, 12, 4-9, 3,5).
 ---
 Dispatch on `$ARGUMENTS`:
 
@@ -9,8 +9,9 @@ Dispatch on `$ARGUMENTS`:
   the findings hook put in your context
 - `project` → run `findings list --scope project`
 - `all` → run `findings list --scope all`
-- `park <ids>`, `skip <ids>`, `done <ids>`, `open <ids>` → run `findings $ARGUMENTS`, then `findings list`
-- `fix <ids>` → run `findings list --status open,park`, take those ids as the task, and start fixing them. Mark each one with `findings done <id>` only after its fix is verified
+- starts with `park`, `skip`, `done`, `open` or `fix` — one decision or several in one line (`skip F80 fix F85`, `park 4-9 · fix 12`) → run `findings $ARGUMENTS` once. It sets every status in the line, or changes nothing and says why. Then:
+  - its output has a `fix: F…` line → those ids are the task: start fixing them, and mark each one with `findings done <id>` only after its fix is verified
+  - otherwise → run `findings list`
 
 The `findings` CLI is the only source. The status of a finding is what `findings list` says, nothing else: do not consult, cite or reconcile memory notes, transcripts, Qdrant, memsearch or any other store, and do not mention them in the reply.
 
