@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.8.6 — 2026-10-09
+
+### Security
+
+- **The prompt hook no longer repeats an urgent finding in full.** It put the
+  whole text of every open `[urgent]` finding into the context of every prompt,
+  with no length limit. That text can quote a web page or a repository the
+  model read, so a planted instruction rode along on every turn until someone
+  decided the finding. Each urgent finding is now one line of at most 200
+  characters, and a line before the list says it is data, not instructions.
+  Found by a security review.
+
 ## 0.8.5 — 2026-10-04
 
 ### Fixed
