@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.8.7 — 2026-10-09
+
+### Fixed
+
+- **A read-only ledger gives one line, not a traceback.** In the Codex
+  `workspace-write` sandbox `~/.local/state` is a read-only file system, and
+  `findings reserve` died with `OSError: [Errno 30]` and a Python traceback
+  (F195). It now prints `findings: the ledger is not writable here (…) — write
+  the items without ids; the Stop hook numbers them` and exits 1, which is
+  what the rule already tells the model to do.
+
 ## 0.8.6 — 2026-10-09
 
 ### Security

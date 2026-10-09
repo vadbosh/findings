@@ -199,14 +199,25 @@ def load(project=None, archived=False):
     return items
 
 
+class ReadOnlyLedger(Exception):
+    """The ledger directory cannot be written here. Codex in its
+    workspace-write sandbox sees ~/.local/state as a read-only file system,
+    and `findings reserve` used to die there with a Python traceback (F195).
+    The rule already says what to do then — write the items without ids, the
+    Stop hook numbers them — so the command says that, in one line."""
+
+
 class Locked:
     """Every writer holds this. The lock is a file of its own, not the ledger:
     compaction replaces the ledger, and a writer that had waited on the old
     file would append to a file that is no longer there."""
 
     def __enter__(self):
-        os.makedirs(DIR, mode=0o700, exist_ok=True)
-        self.f = open(os.path.join(DIR, "ledger.lock"), "a", encoding="utf-8")
+        try:
+            os.makedirs(DIR, mode=0o700, exist_ok=True)
+            self.f = open(os.path.join(DIR, "ledger.lock"), "a", encoding="utf-8")
+        except OSError as e:
+            raise ReadOnlyLedger(f"{DIR}: {e.strerror}") from e
         lock(self.f)
         return self
 
@@ -629,4 +640,9 @@ def main(argv):
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv[1:]))
+    try:
+        sys.exit(main(sys.argv[1:]))
+    except ReadOnlyLedger as e:
+        print(f"findings: the ledger is not writable here ({e}) — write the "
+              "items without ids; the Stop hook numbers them", file=sys.stderr)
+        sys.exit(1)
