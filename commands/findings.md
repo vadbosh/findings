@@ -18,7 +18,9 @@ The `findings` CLI is the only source. The status of a finding is what `findings
 Then reply with the list itself. The tool output is collapsed in the user's terminal and they do not see it, so a reply that only says "8 open" shows them nothing:
 
 1. the `findings list` output, verbatim, in a fenced code block
-2. for each open item, one short line: your recommendation — fix, park or skip — and why
+2. for each open item, one short line that names what it is about, then your recommendation and why:
+   `F<id> — <project>, <path>: fix|park|skip — <why>`. The line is read without
+   the block above it, so a bare `F12 — fix` says nothing about which code it touches
 3. one ready-to-send answer line, e.g. `fix 6,7,9 · park 8,10-12 · skip 13`
 4. the mini-help, one line, translated into the language of the session — the same line the rule puts under the digest, so the user should not have to remember the verbs:
    `fix — fix now · park — defer · skip — decline · done — already fixed · open — reopen`

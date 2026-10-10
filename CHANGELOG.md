@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.8.9 — 2026-10-10
+
+- **`/findings` asks for the place in every recommendation line.** The line under
+  each open item now reads `F<id> — <project>, <path>: fix|park|skip — <why>`.
+  It is read without the digest above it, and `F215 — fix. False positive
+  reproduces in one line` did not say which code it was about.
+
 ## 0.8.8 — 2026-10-10
 
 - **A digest no longer records its items again.** A digest repeats open
