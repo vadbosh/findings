@@ -145,8 +145,9 @@ findings set park 4-9     # or simply: findings park 4-9
 # -p PATH: the project of PATH instead of the current directory
 ```
 
-В Codex нет пользовательских слеш-команд: попросите «покажи findings» или
-запустите `findings list`.
+В Codex нет пользовательских слеш-команд, поэтому там та же команда сделана
+скиллом: `$findings`, `$findings fix F12`. Скилл собирает `lib/skill.sh` из
+`commands/findings.md`, и если они расходятся, тесты падают.
 
 ## Как это подключено
 
@@ -156,7 +157,7 @@ findings set park 4-9     # or simply: findings park 4-9
 | записать секцию ответа в журнал | Stop-хук | Stop-хук | плагин, на `session.idle` |
 | поймать находку, спрятанную в тексте ответа | Stop-хук | Stop-хук | — |
 | сообщить модели, что открыто и что срочно | UserPromptSubmit-хук | UserPromptSubmit-хук | плагин, системный промпт |
-| `/findings` | ✓ | — | ✓ |
+| `/findings` | ✓ | `$findings`, скилл в `~/.codex/skills/` | ✓ |
 
 **Как ловится спрятанная находка.** `found-defects-guard` читает готовый ответ.
 Если в тексте — вне кода, кавычек и раздела предложений — стоит фраза, которая
@@ -188,6 +189,7 @@ bin/found-defects-guard   Stop hook
 plugins/opencode/findings.ts
 rules/found-defects-last.md
 commands/findings.md
+skills/findings/SKILL.md  the same command for Codex, built by lib/skill.sh
 lib/wire.py               edits settings.json, hooks.json, opencode.json, AGENTS.md
 ```
 

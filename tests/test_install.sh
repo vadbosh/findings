@@ -59,11 +59,19 @@ if [ "$first" = "$(state)" ]; then ok "three runs leave the same state"; else no
 
 for f in .local/bin/findings .local/bin/findings-hook .local/bin/found-defects-guard \
          .claude/rules/found-defects-last.md .claude/commands/findings.md \
-         .codex/memories/found-defects-last.md \
+         .codex/memories/found-defects-last.md .codex/skills/findings/SKILL.md \
          .config/opencode/instructions/found-defects-last.md .config/opencode/commands/findings.md \
          .config/opencode/plugins/findings.ts; do
     [ -f "$H/$f" ] && ok "installed $f" || no "installed $f" "missing"
 done
+# The Codex skill is the command rebuilt by lib/skill.sh; a command edited
+# without rebuilding it would ship two different instructions.
+if diff <(bash "$SRC/lib/skill.sh") "$SRC/skills/findings/SKILL.md" >/dev/null; then
+    ok "skills/findings/SKILL.md is what lib/skill.sh builds from the command"
+else
+    no "the Codex skill is stale" "run: bash lib/skill.sh > skills/findings/SKILL.md"
+fi
+grep -q '^name: findings$' "$H/.codex/skills/findings/SKILL.md" && ok "codex: the skill is named findings" || no "codex skill name" "$(head -3 "$H/.codex/skills/findings/SKILL.md")"
 [ -x "$H/.local/bin/findings" ] && ok "the CLI is executable" || no "the CLI is executable" "mode $(stat -c %a "$H/.local/bin/findings")"
 
 claude="$(shape "$H/.claude/settings.json")"
@@ -94,6 +102,7 @@ claude="$(shape "$H/.claude/settings.json")"
     && ok "uninstall removes ours and keeps the foreign hook" || no "uninstall" "$claude"
 grep -q '"model": "x"' "$H/.claude/settings.json" && ok "uninstall keeps unrelated keys" || no "unrelated keys" "$(cat "$H/.claude/settings.json")"
 [ ! -e "$H/.local/bin/findings" ] && [ ! -e "$H/.claude/rules/found-defects-last.md" ] && ok "uninstall removes the files" || no "uninstall files" "$(ls -R "$H" | head)"
+[ ! -e "$H/.codex/skills/findings" ] && ok "uninstall removes the Codex skill and its directory" || no "codex skill left" "$(ls -R "$H/.codex/skills" 2>&1 | head)"
 
 # --dry-run writes nothing; --no-rule installs no rule.
 fresh

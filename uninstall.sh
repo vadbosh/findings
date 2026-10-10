@@ -37,7 +37,9 @@ for ide in claude codex opencode; do
     case "$ide" in
         claude)   remove_file "$HOME/.claude/rules/found-defects-last.md"
                   remove_file "$HOME/.claude/commands/findings.md" ;;
-        codex)    remove_file "$HOME/.codex/memories/found-defects-last.md" ;;
+        codex)    remove_file "$HOME/.codex/memories/found-defects-last.md"
+                  remove_file "$HOME/.codex/skills/findings/SKILL.md"
+                  rmdir "$HOME/.codex/skills/findings" 2>/dev/null || true ;;
         opencode) remove_file "$HOME/.config/opencode/instructions/found-defects-last.md"
                   remove_file "$HOME/.config/opencode/commands/findings.md"
                   remove_file "$HOME/.config/opencode/plugins/findings.ts" ;;

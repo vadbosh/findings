@@ -65,9 +65,10 @@ New-Item -ItemType Directory -Force "$HOME/.claude/rules", "$HOME/.claude/comman
 Copy-Item rules/found-defects-last.md "$HOME/.claude/rules/" -Force
 Copy-Item commands/findings.md "$HOME/.claude/commands/" -Force
 
-# Codex
-New-Item -ItemType Directory -Force "$HOME/.codex/memories" | Out-Null
+# Codex — the command is a skill there: $findings
+New-Item -ItemType Directory -Force "$HOME/.codex/memories", "$HOME/.codex/skills/findings" | Out-Null
 Copy-Item rules/found-defects-last.md "$HOME/.codex/memories/" -Force
+Copy-Item skills/findings/SKILL.md "$HOME/.codex/skills/findings/" -Force
 
 # Opencode
 New-Item -ItemType Directory -Force "$HOME/.config/opencode/instructions", "$HOME/.config/opencode/commands" | Out-Null
@@ -124,6 +125,7 @@ Remove-Item "$HOME/.claude/rules/found-defects-last.md", "$HOME/.claude/commands
             "$HOME/.codex/memories/found-defects-last.md", `
             "$HOME/.config/opencode/instructions/found-defects-last.md", `
             "$HOME/.config/opencode/commands/findings.md" -ErrorAction SilentlyContinue
+Remove-Item -Recurse "$HOME/.codex/skills/findings" -ErrorAction SilentlyContinue
 ```
 
 The ledger stays: `$HOME/.local/state/findings/` (`ledger.jsonl`, `archive.jsonl`).

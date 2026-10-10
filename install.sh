@@ -12,6 +12,8 @@
 #                                      found-defects-last.md, the rule
 #   ~/.claude/commands/  ~/.config/opencode/commands/
 #                                      findings.md, the /findings command
+#   ~/.codex/skills/findings/          SKILL.md, the same command as `$findings`
+#                                      (Codex has no user slash commands)
 #   ~/.config/opencode/plugins/        findings.ts
 #   settings.json, hooks.json, opencode.json, AGENTS.md
 #                                      wired by lib/wire.py
@@ -113,7 +115,8 @@ while IFS= read -r ide; do
             [ "$WITH_RULE" -eq 1 ] && install_file "$SRC/rules/found-defects-last.md" "$HOME/.claude/rules/found-defects-last.md"
             install_file "$SRC/commands/findings.md" "$HOME/.claude/commands/findings.md" ;;
         codex)
-            [ "$WITH_RULE" -eq 1 ] && install_file "$SRC/rules/found-defects-last.md" "$HOME/.codex/memories/found-defects-last.md" ;;
+            [ "$WITH_RULE" -eq 1 ] && install_file "$SRC/rules/found-defects-last.md" "$HOME/.codex/memories/found-defects-last.md"
+            install_file "$SRC/skills/findings/SKILL.md" "$HOME/.codex/skills/findings/SKILL.md" ;;
         opencode)
             [ "$WITH_RULE" -eq 1 ] && install_file "$SRC/rules/found-defects-last.md" "$HOME/.config/opencode/instructions/found-defects-last.md"
             install_file "$SRC/commands/findings.md" "$HOME/.config/opencode/commands/findings.md"

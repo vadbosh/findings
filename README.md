@@ -142,7 +142,9 @@ findings set park 4-9     # or simply: findings park 4-9
 # -p PATH: the project of PATH instead of the current directory
 ```
 
-Codex has no user slash commands: ask "show findings", or run `findings list`.
+Codex has no user slash commands, so the same command is a skill there:
+`$findings`, `$findings fix F12`. It is built from `commands/findings.md` by
+`lib/skill.sh`, and the tests fail when the two differ.
 
 ## How it is wired
 
@@ -152,7 +154,7 @@ Codex has no user slash commands: ask "show findings", or run `findings list`.
 | record the reply's section in the ledger | Stop hook | Stop hook | plugin, on `session.idle` |
 | catch a finding buried in the body | Stop hook | Stop hook | — |
 | tell the model what is open and urgent | UserPromptSubmit hook | UserPromptSubmit hook | plugin, system prompt |
-| `/findings` | ✓ | — | ✓ |
+| `/findings` | ✓ | `$findings`, skill in `~/.codex/skills/` | ✓ |
 
 **Catching a buried finding.** `found-defects-guard` reads the finished reply.
 A phrase that defers a defect — "separate task", "also noticed", "out of scope",
@@ -184,6 +186,7 @@ bin/found-defects-guard   Stop hook
 plugins/opencode/findings.ts
 rules/found-defects-last.md
 commands/findings.md
+skills/findings/SKILL.md  the same command for Codex, built by lib/skill.sh
 lib/wire.py               edits settings.json, hooks.json, opencode.json, AGENTS.md
 ```
 

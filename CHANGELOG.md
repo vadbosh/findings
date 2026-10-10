@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.8.10 — 2026-10-10
+
+- **Codex gets the command as a skill: `$findings`.** Codex has no user slash
+  commands, so until now it had only the rule, and the reply format of
+  `commands/findings.md` (the digest, the recommendation line per item, the
+  answer line) never reached it. `install.sh` now writes
+  `~/.codex/skills/findings/SKILL.md`, `uninstall.sh` removes it, and
+  `release.sh check` compares it with the checkout. The skill is built from the
+  command by `lib/skill.sh`; `tests/test_install.sh` fails when the committed
+  copy differs from what the command builds.
+
 ## 0.8.9 — 2026-10-10
 
 - **`/findings` asks for the place in every recommendation line.** The line under

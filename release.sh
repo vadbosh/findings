@@ -34,6 +34,7 @@ rules/found-defects-last.md $HOME/.codex/memories/found-defects-last.md
 rules/found-defects-last.md $HOME/.config/opencode/instructions/found-defects-last.md
 commands/findings.md $HOME/.claude/commands/findings.md
 commands/findings.md $HOME/.config/opencode/commands/findings.md
+skills/findings/SKILL.md $HOME/.codex/skills/findings/SKILL.md
 plugins/opencode/findings.ts $HOME/.config/opencode/plugins/findings.ts
 EOF
 }
