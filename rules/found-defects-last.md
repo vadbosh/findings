@@ -62,6 +62,8 @@ Code, but nowhere else.
   Decide in one line: /findings park F10-F13 · fix F18
   fix — fix now · park — defer · skip — decline · done — already fixed · open — reopen
   ```
+  **In Codex write `$findings`** wherever this file says `/findings`: there the
+  command is a skill, and a slash form points at nothing.
   When they are missing, the Stop hook shows them under the reply instead
 - **nothing found → no section.** Never invent an item to fill it
 
@@ -97,7 +99,9 @@ finding's path points at. From then on:
   "where is it?" after a reply sent them to find it themselves
 
 `/findings` shows this session's digest, `/findings project` the whole project,
-`/findings all` everything; `/findings park 4-9` and the like change it.
+`/findings all` everything; `/findings park 4-9` and the like change it. In
+Codex the same command is the skill `$findings`: `$findings project`,
+`$findings park 4-9`.
 
 ## Enforcement
 

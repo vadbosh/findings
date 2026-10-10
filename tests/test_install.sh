@@ -72,6 +72,9 @@ else
     no "the Codex skill is stale" "run: bash lib/skill.sh > skills/findings/SKILL.md"
 fi
 grep -q '^name: findings$' "$H/.codex/skills/findings/SKILL.md" && ok "codex: the skill is named findings" || no "codex skill name" "$(head -3 "$H/.codex/skills/findings/SKILL.md")"
+# Codex reads the same rule, and every example in it says `/findings` (F218).
+grep -qF 'In Codex write `$findings`' "$H/.codex/memories/found-defects-last.md" \
+    && ok "codex: the rule tells it to write \$findings" || no "codex rule" "no \$findings note in the installed rule"
 [ -x "$H/.local/bin/findings" ] && ok "the CLI is executable" || no "the CLI is executable" "mode $(stat -c %a "$H/.local/bin/findings")"
 
 claude="$(shape "$H/.claude/settings.json")"

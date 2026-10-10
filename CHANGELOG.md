@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.8.14 — 2026-10-10
+
+- **The rule tells Codex to write `$findings`.** All three assistants read
+  `rules/found-defects-last.md`, and every example in it says `/findings`, so a
+  model in Codex copied a slash command that Codex does not have into its ready
+  answers. The rule now says, beside the ready-answer example and beside the
+  list of commands, that in Codex the command is the skill `$findings` (F218).
+
 ## 0.8.13 — 2026-10-10
 
 - **In Codex the Stop hook's ready answer starts with `$findings`.** The line it
