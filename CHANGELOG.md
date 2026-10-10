@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.8.11 — 2026-10-10
+
+- **An empty digest is one line, not a form to fill.** With nothing open,
+  `$findings list` in Codex still wrote the answer line and the list of verbs,
+  and the answer line came out as a lone `project`. Now, with nothing open, the
+  reply is the list and one line that says so; when the list counts open
+  findings elsewhere in the project, that line names `project` as the next step.
+- `/findings list` (and `$findings list`) means the same as `/findings` with no
+  argument. The model had guessed it right, but the command did not say so.
+
 ## 0.8.10 — 2026-10-10
 
 - **Codex gets the command as a skill: `$findings`.** Codex has no user slash

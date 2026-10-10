@@ -3,7 +3,7 @@ description: Digest of defects found along the way (ledger of rules/found-defect
 ---
 Dispatch on `$ARGUMENTS`:
 
-- empty → run `findings list` — this session's findings plus a line counting
+- empty or `list` → run `findings list` — this session's findings plus a line counting
   what else is open in the project. Where the shell carries no session id
   (Codex, Opencode), add `--session <id>` from the "This session (<id>)" line
   the findings hook put in your context
@@ -24,5 +24,10 @@ Then reply with the list itself. The tool output is collapsed in the user's term
 3. one ready-to-send answer line, e.g. `fix 6,7,9 · park 8,10-12 · skip 13`
 4. the mini-help, one line, translated into the language of the session — the same line the rule puts under the digest, so the user should not have to remember the verbs:
    `fix — fix now · park — defer · skip — decline · done — already fixed · open — reopen`
+
+Nothing open in the list → after item 1, one line saying so, and skip 2–4: there
+is nothing to decide, and an answer line or a list of verbs with nothing to apply
+them to only reads as noise. When the output counts open findings elsewhere in
+the project, that line names the next step: this same command with `project`.
 
 On an error, state it in one line instead.
