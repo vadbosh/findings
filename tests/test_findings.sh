@@ -89,6 +89,10 @@ out="$(FINDINGS_SESSION=s1 f list -p "$A")"
 check "session: its parked finding in another project is shown" "два владельца" "$out"
 absent "session: another session's finding is not listed"       "new bug" "$out"
 check "session: one line counts the rest of the project"        "+2 open in $A from other sessions" "$out"
+# The next step is the CLI, not a slash command: Codex calls it `$findings`,
+# and a hint naming `/findings` there points at nothing.
+check "session: the hint is the CLI command"                    "from other sessions — findings list --scope project" "$out"
+absent "session: the hint names no slash command"               "— /findings" "$out"
 check "session: an id prefix is enough"                          "new bug" "$(f list --session g -p "$A")"
 out="$(f list -p "$A")"
 check "no session id: whole project, and says so"                "no session id" "$out"

@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.8.12 — 2026-10-10
+
+- **`findings list` names the CLI as the next step, not `/findings project`.**
+  The line counting open findings from other sessions ended in a slash command,
+  and Codex calls the same command `$findings`. It now ends in
+  `findings list --scope project`, which works from any shell and any assistant.
+- **The "nothing open" line is written in the language of the session.** In
+  Codex it came out in English after a Russian reply, because the command asked
+  only for the verb help to be translated.
+
 ## 0.8.11 — 2026-10-10
 
 - **An empty digest is one line, not a form to fill.** With nothing open,

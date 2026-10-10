@@ -74,7 +74,7 @@ rest:
 findings: /srv/app
   F12 [related] `/srv/app/db/migrate.py:88` — the rollback skips the index it created …
 
-+3 open in /srv/app from other sessions — /findings project
++3 open in /srv/app from other sessions — findings list --scope project
 ```
 
 A directory where unrelated tasks run side by side stays readable, and nothing

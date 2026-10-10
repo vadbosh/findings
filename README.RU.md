@@ -73,7 +73,7 @@ fix 12 · park 13 · skip 14
 findings: /srv/app
   F12 [related] `/srv/app/db/migrate.py:88` — откат не удаляет созданный индекс …
 
-+3 open in /srv/app from other sessions — /findings project
++3 open in /srv/app from other sessions — findings list --scope project
 ```
 
 Каталог, в котором рядом идут несвязанные задачи, не превращается в свалку, и

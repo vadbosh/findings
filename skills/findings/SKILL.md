@@ -26,7 +26,8 @@ Then reply with the list itself. The tool output is collapsed in the user's term
 4. the mini-help, one line, translated into the language of the session — the same line the rule puts under the digest, so the user should not have to remember the verbs:
    `fix — fix now · park — defer · skip — decline · done — already fixed · open — reopen`
 
-Nothing open in the list → after item 1, one line saying so, and skip 2–4: there
+Nothing open in the list → after item 1, one line saying so, in the language of
+the session like the rest of the reply, and skip 2–4: there
 is nothing to decide, and an answer line or a list of verbs with nothing to apply
 them to only reads as noise. When the output counts open findings elsewhere in
 the project, that line names the next step: this same command with `project`.

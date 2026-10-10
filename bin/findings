@@ -608,7 +608,10 @@ def main(argv):
             others = [it for it in load(project).values()
                       if it["status"] == "open" and not of_session(it, sid)]
             if others:
-                print(f"\n+{len(others)} open in {project} from other sessions — /findings project")
+                # The CLI, not `/findings project`: Codex calls the command
+                # `$findings`, and a slash form there points at nothing.
+                print(f"\n+{len(others)} open in {project} from other sessions — "
+                      "findings list --scope project")
         else:
             targets = projects() if scope == "all" else [project]
             blocks = [b for b in (digest(p, statuses) for p in targets) if b]
