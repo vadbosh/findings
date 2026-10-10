@@ -188,6 +188,23 @@ absent "an unreserved id is not taken"                  "added F9999" "$out"
 check "the item is still recorded, under the next id"  "added F" "$out"
 check "reserve 0 is refused"                           "count of 1 or more" "$(f reserve 0)"
 
+# A digest repeats recorded findings under their ids, often in fewer words. The
+# id and the place identify the finding; the shorter text used to fall under the
+# similarity threshold and be recorded again under a new id (F216).
+dg="$(f reserve --session r8)"
+LONG="the PAYLOAD pattern does not check that -c belongs to a shell, so echo -c set is blocked as an environment dump with exit 2, while echo unset and unset tok pass with exit 0; possibly the cause of the earlier report, not verified"
+printf '%s' "## Found along the way${NL}${NL}1. $dg: [unrelated] \`/opt/guard:612\` — $LONG. Fix?" \
+    | f record --cwd "$A" --session r8 >/dev/null
+before="$(f list --scope all --status any | grep -c '^  F')"
+out="$(printf '%s' "## Found along the way${NL}${NL}1. $dg: [unrelated] \`/opt/guard:612\` — echo -c set is blocked as a dump. Fix?" \
+    | f record --cwd "$A" --session r9)"
+absent "a digest item naming a recorded finding adds nothing" "added" "$out"
+check "the ledger did not grow" "$before" "$(f list --scope all --status any | grep -c '^  F')"
+out="$(printf '%s' "## Found along the way${NL}${NL}1. $dg: [unrelated] \`/opt/other:1\` — a different place entirely. Fix?" \
+    | f record --cwd "$A" --session r9)"
+check "an existing id at another place is still a new finding" "added F" "$out"
+absent "and it does not take that id"                   "added $dg" "$out"
+
 # Several decisions in one line, as the chat answer is written.
 M="## Found along the way${NL}${NL}1. [related] \`$A/sub/file.txt:40\` — multi one — x. Fix?${NL}"
 M+="2. [related] \`$A/sub/file.txt:41\` — multi two — x. Fix?${NL}3. [related] \`$A/sub/file.txt:42\` — multi three — x. Fix?"

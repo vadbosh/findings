@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.8.8 — 2026-10-10
+
+- **A digest no longer records its items again.** A digest repeats open
+  findings under their ids, usually in fewer words. When the text was short
+  enough to fall under the similarity threshold, the hook recorded the item
+  as a new finding with a new id: F210 and F211 came back as F213 and F214.
+  An item that carries the id of a recorded finding at the same place is now
+  that finding. The same id at another place is still a wrong number and gets
+  the next free id, as before (F216).
+
 ## 0.8.7 — 2026-10-09
 
 ### Fixed

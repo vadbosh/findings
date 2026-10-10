@@ -198,7 +198,9 @@ runs `findings reserve N` and opens each item with an id it got:
 `1. F60: [related] …`. The hook records the item under that id, so the reader
 can answer `/findings fix F60` without looking anything up. An id reserved by
 another session, or never reserved, is not taken: the item gets the next free
-one instead.
+one instead. The exception is an id that the ledger already holds for the same
+place. Such an item repeats that finding, as a digest does, and nothing new is
+recorded.
 
 The model does not always do it. When an item comes without its id, gets a
 different one, or turns out to be already in the ledger, the hook shows which

@@ -242,6 +242,16 @@ def append(project, events):
         for e in events:
             if e["op"] == "add":
                 want = e.pop("want", None)
+                # An item carrying the id of a recorded finding at the same
+                # place is that finding repeated, as a digest repeats it: often
+                # in fewer words, which falls under the similarity threshold
+                # below and used to be recorded again under a new id (F216).
+                # Done findings included -- a digest lists those too. The same
+                # id at another place is a wrong number, and gets the next id.
+                prior = everything.get(want) if want is not None else None
+                if prior and norm(prior.get("where")) == norm(e.get("where")):
+                    out.append((want, False))
+                    continue
                 dup = duplicate(items, e)
                 if dup:
                     out.append((dup, False))
