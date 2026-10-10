@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.8.13 — 2026-10-10
+
+- **In Codex the Stop hook's ready answer starts with `$findings`.** The line it
+  adds under a section without one, `Decide in one line: /findings fix|park|…`,
+  named a slash command that Codex does not have. The hook now tells the two
+  assistants apart: a transcript under `.codex/`, or, with no transcript, the
+  `turn_id` field that only Codex puts in the Stop payload (F217).
+
 ## 0.8.12 — 2026-10-10
 
 - **`findings list` names the CLI as the next step, not `/findings project`.**

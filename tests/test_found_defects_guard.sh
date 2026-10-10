@@ -125,6 +125,14 @@ msg="$(notice "Готово.${NL}${NL}## Найдено попутно${NL}  $h1
 check_msg "a digest without help gets it too" "open $h1" "$msg"
 msg="$(notice "Done.${NL}${NL}## Found along the way${NL}  $h2 [related] \`/tmp/h2.txt:2\` — two  — 2026-10-04")"
 check_msg "English heading, English help" "fix — fix now · park — defer" "$msg"
+# Codex calls the command `$findings`; its Stop payload carries `turn_id`
+# (codex-rs/hooks/src/schema.rs, StopCommandInput), Claude Code's does not.
+msg="$(jq -nc --arg m "Done.${NL}${NL}## Found along the way${NL}  $h2 [related] \`/tmp/h2.txt:2\` — two  — 2026-10-04" \
+    '{hook_event_name:"Stop",session_id:"t",turn_id:"u1",transcript_path:null,cwd:"/tmp",stop_hook_active:false,last_assistant_message:$m}' \
+    | "$GUARD" | jq -r '.systemMessage // ""')"
+check_msg "codex: the ready answer names \$findings" "Decide in one line: \$findings fix|park|skip|done|open $h2" "$msg"
+if printf '%s' "$msg" | grep -qF '/findings'; then fail=$((fail + 1)); echo "  FAIL  codex: a slash command in the help: $msg"
+else pass=$((pass + 1)); [ "$QUIET" -eq 1 ] || echo "  ok    codex: no /findings in the help"; fi
 msg="$(notice "Готово.${NL}${NL}## Найдено попутно${NL}  $h1 [related] \`/tmp/h1.txt:1\` — раз${NL}${NL}Решить одной строкой: /findings park $h1${NL}fix — исправить · park — отложить · skip — отклонить · done — уже исправлено · open — вернуть")"
 if [ -z "$msg" ]; then pass=$((pass + 1)); [ "$QUIET" -eq 1 ] || echo "  ok    help present: the hook stays silent"
 else fail=$((fail + 1)); echo "  FAIL  help present, still: $msg"; fi

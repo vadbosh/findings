@@ -218,14 +218,27 @@ def ledger_record(reply, payload):
 
 
 HELP = {
-    "ru": ("Решить одной строкой: /findings fix|park|skip|done|open {ids}",
+    "ru": ("Решить одной строкой: {cmd} fix|park|skip|done|open {ids}",
            "fix — исправить · park — отложить · skip — отклонить · done — уже исправлено · open — вернуть"),
-    "en": ("Decide in one line: /findings fix|park|skip|done|open {ids}",
+    "en": ("Decide in one line: {cmd} fix|park|skip|done|open {ids}",
            "fix — fix now · park — defer · skip — decline · done — already fixed · open — reopen"),
 }
 
 
-def help_notice(reply, ids):
+def command_name(payload):
+    """`$findings` in Codex, where the command is a skill; `/findings` elsewhere.
+
+    Codex has no user slash commands, so a ready answer starting `/findings`
+    points at nothing there. Its transcript lives under `.codex/`; with no
+    transcript, its Stop payload still carries `turn_id`, a Codex extension
+    (codex-rs/hooks/src/schema.rs) that Claude Code does not send."""
+    path = (payload.get("transcript_path") or "").replace("\\", "/")
+    if "/.codex/" in path or (not path and "turn_id" in payload):
+        return "$findings"
+    return "/findings"
+
+
+def help_notice(reply, ids, cmd="/findings"):
     """The ready answer and the mini-help, when the reply's section lacks them.
 
     The rule asks for both under every section; a model forgets. Detected by
@@ -249,7 +262,7 @@ def help_notice(reply, ids):
     ids = sorted(dict.fromkeys(ids))
     lang = "ru" if re.search(r"[а-яё]", last.group(1), re.I) else "en"
     answer, verbs = HELP[lang]
-    return answer.format(ids=",".join(f"F{i}" for i in ids)) + "\n" + verbs
+    return answer.format(cmd=cmd, ids=",".join(f"F{i}" for i in ids)) + "\n" + verbs
 
 
 def main():
@@ -267,7 +280,7 @@ def main():
         if not SECTION.search(text):
             continue
         notice, ids = ledger_record(text, payload)
-        for p in (notice, help_notice(text, ids)):
+        for p in (notice, help_notice(text, ids, command_name(payload))):
             if p and p not in parts:
                 parts.append(p)
     if parts:
