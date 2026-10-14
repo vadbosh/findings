@@ -20,8 +20,13 @@ Then reply with the list itself. The tool output is collapsed in the user's term
 1. the `findings list` output, verbatim, in a fenced code block
 2. for each open item, one short line that names what it is about, then your recommendation and why:
    `F<id> — <project>, <path>: fix|park|skip — <why>`. The line is read without
-   the block above it, so a bare `F12 — fix` says nothing about which code it touches
-3. one ready-to-send answer line, e.g. `fix 6,7,9 · park 8,10-12 · skip 13`
+   the block above it, so a bare `F12 — fix` says nothing about which code it touches.
+   When the list has the `this session` / `other sessions` headings, keep the lines
+   in those two groups, each under a short heading in the language of the session
+3. one ready-to-send answer line, e.g. `fix 6,7,9 · park 8,10-12 · skip 13`. A fix of
+   an `other sessions` item goes on its own line behind a context reset, so it is not
+   paid at this context's size on every call: `/clear`, then this same command with
+   `fix 127,128`
 4. the mini-help, one line, translated into the language of the session — the same line the rule puts under the digest, so the user should not have to remember the verbs:
    `fix — fix now · park — defer · skip — decline · done — already fixed · open — reopen`
 

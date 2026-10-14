@@ -450,17 +450,34 @@ def of_session(it, sid):
     return bool(sid) and (it.get("session") or "").startswith(sid)
 
 
-def digest(project, statuses=("open", "park"), session=None, archived=False):
+# A finding from another session is fixed in a context that holds none of its
+# investigation, and every call of that fix re-reads the whole of it: in a long
+# session that is hundreds of thousands of tokens per call. So the project
+# digest says which findings belong here and which want a fresh context.
+HERE = "this session — fix here:"
+ELSEWHERE = ("other sessions — fix after /clear, /compact or in a new session; "
+             "here each call re-reads this context:")
+
+
+def digest(project, statuses=("open", "park"), session=None, archived=False, split=None):
     items = [it for it in load(project, archived).values() if it["status"] in statuses
              and (session is None or of_session(it, session))]
     if not items:
         return ""
     order = {"open": 0, "park": 1, "skip": 2, "done": 3}
     items.sort(key=lambda it: (order[it["status"]], "urgent" not in it.get("tags", []), it["id"]))
-    lines = [f"findings: {project}"]
-    for it in items:
+
+    def row(it):
         mark = "" if it["status"] == "open" else f" ({it['status']})"
-        lines.append(f"  {label(it)}{mark}  — {it['ts'][:10]}")
+        return f"  {label(it)}{mark}  — {it['ts'][:10]}"
+
+    lines = [f"findings: {project}"]
+    if not split:
+        return "\n".join(lines + [row(it) for it in items])
+    for head, group in ((HERE, [it for it in items if of_session(it, split)]),
+                        (ELSEWHERE, [it for it in items if not of_session(it, split)])):
+        if group:
+            lines += [head] + [row(it) for it in group]
     return "\n".join(lines)
 
 
@@ -611,10 +628,11 @@ def main(argv):
                 # The CLI, not `/findings project`: Codex calls the command
                 # `$findings`, and a slash form there points at nothing.
                 print(f"\n+{len(others)} open in {project} from other sessions — "
-                      "findings list --scope project")
+                      "findings list --scope project; fix them after /clear, /compact "
+                      "or in a new session")
         else:
             targets = projects() if scope == "all" else [project]
-            blocks = [b for b in (digest(p, statuses) for p in targets) if b]
+            blocks = [b for b in (digest(p, statuses, split=sid) for p in targets) if b]
             print("\n\n".join(blocks) if blocks else "findings: nothing open")
     elif a.cmd == "count":
         open_, urgent, parked = counts(project)

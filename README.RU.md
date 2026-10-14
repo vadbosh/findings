@@ -73,12 +73,17 @@ fix 12 · park 13 · skip 14
 findings: /srv/app
   F12 [related] `/srv/app/db/migrate.py:88` — откат не удаляет созданный индекс …
 
-+3 open in /srv/app from other sessions — findings list --scope project
++3 open in /srv/app from other sessions — findings list --scope project; fix them after /clear, /compact or in a new session
 ```
 
 Каталог, в котором рядом идут несвязанные задачи, не превращается в свалку, и
 ничто нерешённое не пропадает: находки других сессий считает последняя строка.
 `/findings project` показывает весь проект, `/findings all` — все проекты.
+
+Обе команды делят список на две части: `this session — fix here:` и
+`other sessions`. Находку из другой сессии исправляйте после `/clear` или
+`/compact` либо в новой сессии. В текущем контексте нет её разбора, а в длинной
+сессии каждый вызов при исправлении заново читает весь этот контекст.
 
 ID сессии в Claude Code берётся из `$CLAUDE_CODE_SESSION_ID`. Codex и Opencode
 в шелл его не передают, поэтому перед каждым запросом хук сообщает модели ID

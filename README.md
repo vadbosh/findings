@@ -74,12 +74,17 @@ rest:
 findings: /srv/app
   F12 [related] `/srv/app/db/migrate.py:88` — the rollback skips the index it created …
 
-+3 open in /srv/app from other sessions — findings list --scope project
++3 open in /srv/app from other sessions — findings list --scope project; fix them after /clear, /compact or in a new session
 ```
 
 A directory where unrelated tasks run side by side stays readable, and nothing
 undecided disappears: the last line counts it. `/findings project` lists the
 whole project, `/findings all` every project.
+
+Both split the list in two: `this session — fix here:` and `other sessions`.
+Fix a finding from another session after `/clear` or `/compact`, or in a new
+session. The current context holds none of its investigation, and a fix in a
+long session re-reads that whole context on every call.
 
 The session id comes from `$CLAUDE_CODE_SESSION_ID` in Claude Code. Codex and
 Opencode put none in the shell, so the prompt hook hands it to the model, which

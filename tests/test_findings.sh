@@ -97,8 +97,19 @@ check "session: an id prefix is enough"                          "new bug" "$(f 
 out="$(f list -p "$A")"
 check "no session id: whole project, and says so"                "no session id" "$out"
 check "no session id: the project is listed"                     "new bug" "$out"
+out="$(FINDINGS_SESSION=s1 f list -p "$A")"
+check "session: the count says to fix the rest in a fresh context" "fix them after /clear, /compact or in a new session" "$out"
 out="$(FINDINGS_SESSION=s1 f list --scope project -p "$A")"
 check "--scope project ignores the session"                      "new bug" "$out"
+# The project digest splits by session: a finding from another session is
+# fixed in a context that holds none of its investigation, at full price per call.
+out="$(FINDINGS_SESSION=g f list --scope project -p "$A")"
+check "project: this session's findings have their own heading"  "this session — fix here:" "$out"
+check "project: the rest are told to take a fresh context"       "other sessions — fix after /clear, /compact or in a new session" "$out"
+check "project: this session's finding sits under its heading"   "new bug" "$(printf '%s\n' "$out" | sed -n '/^this session — fix here:/{n;p;}')"
+absent "project: it is not repeated among the other sessions"   "new bug" "$(printf '%s\n' "$out" | sed -n '/^other sessions/,$p')"
+out="$(f list --scope project -p "$A")"
+absent "project, no session id: no split it could not make"      "this session —" "$out"
 f list --scope session -p "$A" >/dev/null 2>&1; rc=$?
 [ "$rc" -eq 2 ] && { pass=$((pass + 1)); [ "$QUIET" -eq 1 ] || echo "  ok    --scope session without an id is refused"; } \
                || { fail=$((fail + 1)); echo "  FAIL  --scope session without an id: rc=$rc"; }

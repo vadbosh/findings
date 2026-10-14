@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.9.0 — 2026-10-14
+
+- **`findings list` tells this session's findings from the rest.** The project
+  and all-projects digests now put this session's findings under
+  `this session — fix here:` and the others under `other sessions`, with one
+  line: fix those after `/clear`, `/compact` or in a new session. The count
+  line of the session digest says the same. A fix run in a long session
+  re-reads its whole context on every call: one `/findings fix` of a finding
+  from another session cost 53 calls at about 566k tokens each. `/findings`
+  keeps the two groups in its reply and puts such a fix behind a context
+  reset: `/clear → /findings fix 127,128`.
+
 ## 0.8.14 — 2026-10-10
 
 - **The rule tells Codex to write `$findings`.** All three assistants read
