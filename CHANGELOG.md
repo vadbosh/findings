@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.9.1 — 2026-10-14
+
+- **The section of new findings groups them by project.** When the items of
+  one section belong to more than one project, the rule now puts them under a
+  label line per project: the project of the working directory first, as
+  `` `<path>` — this project: ``, then each other project by its path. The
+  ledger files a finding the same way, so the reader sees where each one will
+  be listed before running `/findings project`. The labels are plain lines,
+  not headings or numbered items, so the Stop hook skips them; numbering runs
+  through all groups. A section with one project has no labels.
+
 ## 0.9.0 — 2026-10-14
 
 - **`findings list` tells this session's findings from the rest.** The project

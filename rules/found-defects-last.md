@@ -33,9 +33,12 @@ Code, but nowhere else.
 ```markdown
 ## Found along the way
 
+`/abs/path/of/this/repo` — this project:
 1. F60: [related] `path:line` — <what is wrong> — <evidence>. Fix?
-2. F61: [unrelated] `/abs/path/in/other/repo` — <what is wrong> — unverified, suspicion. Fix?
-3. F62: [urgent][unrelated] <prod alert or leaked secret> — <evidence>. Fix?
+2. F61: [urgent][unrelated] <prod alert or leaked secret> — <evidence>. Fix?
+
+`/abs/path/of/other/repo`:
+3. F62: [unrelated] `/abs/path/of/other/repo/file` — <what is wrong> — unverified, suspicion. Fix?
 ```
 
 - **each item opens with its ledger id**, so the reader can answer
@@ -43,6 +46,13 @@ Code, but nowhere else.
   `findings reserve N` (N = the number of items) and use the ids it prints, in
   order. The Stop hook records each item under the id it carries. No shell, or
   the command fails → write the items without ids; the hook numbers them
+- **items from more than one project are grouped by project**, the way the
+  ledger files them: the repository the item's path is in, and the project of
+  the working directory for an item with no path. The working directory's
+  project comes first, labelled "this project"; each other one is labelled with
+  its path. A group label is a plain line ending in a colon — never a heading,
+  which would end the section, and never numbered. Numbering runs through all
+  groups, so "fix 3" names one item. All items in one project → no labels
 - **one line per defect**: where, what is wrong, the evidence — the command
   or the line that shows it. A suspicion you did not check says "unverified"
 - **tag** each item `[related]` or `[unrelated]`, so the reader sees at once

@@ -110,6 +110,12 @@ id="$(FINDINGS_DIR="$FINDINGS_DIR" "$HERE/../bin/findings" reserve --session t)"
 msg="$(notice "Готово.${NL}${NL}## Найдено попутно${NL}1. $id: [связано] \`/tmp/n2.txt:4\` — с номером — x. Исправить?")"
 if ! printf '%s' "$msg" | grep -q 'findings recorded'; then pass=$((pass + 1)); [ "$QUIET" -eq 1 ] || echo "  ok    no id notice when every item carries its id"
 else fail=$((fail + 1)); echo "  FAIL  notice despite ids: $msg"; fi
+# Items grouped by project: the labels are not items, numbering runs through.
+msg="$(notice "Готово.${NL}${NL}## Найдено попутно${NL}\`/tmp\` — этот проект:${NL}1. [связано] \`/tmp/g1.txt:1\` — первая группа — x. Исправить?${NL}${NL}\`/var\`:${NL}2. [не связано] \`/tmp/g2.txt:2\` — вторая группа — x. Исправить?")"
+if printf '%s' "$msg" | grep -qE '^  1\. F[0-9]+  g1\.txt:1 — первая группа$' \
+   && printf '%s' "$msg" | grep -qE '^  2\. F[0-9]+  g2\.txt:2 — вторая группа$' \
+   && [ "$(printf '%s' "$msg" | grep -cE '^  [0-9]+\. F')" = 2 ]; then pass=$((pass + 1)); [ "$QUIET" -eq 1 ] || echo "  ok    project labels are skipped, numbering runs through the groups"
+else fail=$((fail + 1)); echo "  FAIL  grouped section: $msg"; fi
 
 # The mini-help: shown by the hook when the section does not carry it.
 ids="$(FINDINGS_DIR="$FINDINGS_DIR" "$HERE/../bin/findings" reserve 2 --session t)"
