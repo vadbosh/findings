@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.9.2 — 2026-10-16
+
+- **The OpenCode plugin loads in OpenCode 2.** OpenCode 2 accepts only a
+  plugin that exports a default object with an `id` and `setup()`. The old
+  `export const FindingsPlugin` alone failed at load, so no section was
+  recorded. `plugins/opencode/findings.ts` now exports both shapes: OpenCode 2
+  calls `setup()`, OpenCode 1 calls `server()`. In OpenCode 2 the plugin
+  records the section when the turn ends (`session.execution.succeeded`) and
+  adds the open counts to the system prompt through the `context` hook. It no
+  longer uses the Bun `$` helper.
+
 ## 0.9.1 — 2026-10-14
 
 - **The section of new findings groups them by project.** When the items of
