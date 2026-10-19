@@ -136,6 +136,12 @@ findings sessions --ide opencode     # только сессии opencode
 findings sessions --scope project    # только находки текущего проекта
 ```
 
+В терминале `sessions` и `list` выделяют одно и то же одними цветами: `last …`
+ярко-зелёным, `[related]` голубым, `[unrelated]` жёлтым, `[urgent]` жирным
+ярко-красным. Когда вывод читает ассистент, хук или `$(findings brief …)`, цвета
+нет. `NO_COLOR=1` выключает цвет, `FINDINGS_COLOR=always` оставляет его и в
+конвейере, например для `less -R`.
+
 ## Где хранятся находки
 
 В одном файле на вашей машине: `~/.local/state/findings/ledger.jsonl`. В

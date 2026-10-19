@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.10.3 — 2026-10-19
+
+- **Colours in a terminal, one per meaning.** `findings sessions` and
+  `findings list` show `last …` in bright green, `[related]` in cyan,
+  `[unrelated]` in yellow and `[urgent]` in bold bright red. Only when the output
+  goes to a terminal: an assistant, a hook or `$(findings brief …)` gets plain
+  text, and the hook's own listing is never coloured. `NO_COLOR=1` or
+  `FINDINGS_COLOR=never` turns colour off; `FINDINGS_COLOR=always` keeps it in a
+  pipe, for `less -R`.
+
 ## 0.10.2 — 2026-10-19
 
 - **Each IDE has its own example.** `findings --help` showed `--ide codex` and

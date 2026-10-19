@@ -137,6 +137,12 @@ findings sessions --ide opencode     # opencode sessions only
 findings sessions --scope project    # the findings of this project only
 ```
 
+In a terminal, `sessions` and `list` use the same colours everywhere: `last …`
+is bright green, `[related]` cyan, `[unrelated]` yellow, `[urgent]` bold bright
+red. Output read by an assistant, a hook or `$(findings brief …)` has no colour.
+`NO_COLOR=1` turns colour off; `FINDINGS_COLOR=always` keeps it in a pipe, for
+`less -R`.
+
 ## Where a finding is kept
 
 In one file on your machine: `~/.local/state/findings/ledger.jsonl`. Nothing is

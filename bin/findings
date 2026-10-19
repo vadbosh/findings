@@ -444,8 +444,31 @@ def now():
     return time.strftime("%Y-%m-%dT%H:%M:%S%z")
 
 
-def label(it):
-    tags = "".join(f"[{t}]" for t in it.get("tags", []))
+# One colour per meaning, the same in every listing. Only for a terminal: an
+# assistant, a hook or `$(findings brief …)` reads the output as text, and an
+# escape code there is noise in a model's context. NO_COLOR turns it off,
+# FINDINGS_COLOR=always on (for `less -R`), FINDINGS_COLOR=never off.
+COLORS = {"related": "36", "unrelated": "33", "urgent": "1;91", "last": "92"}
+_COLOR = None
+
+
+def color_on():
+    global _COLOR
+    if _COLOR is None:
+        mode = os.environ.get("FINDINGS_COLOR", "auto").lower()
+        if os.environ.get("NO_COLOR") or mode == "never":
+            _COLOR = False
+        else:
+            _COLOR = mode == "always" or sys.stdout.isatty()
+    return _COLOR
+
+
+def paint(text, what):
+    return f"\033[{COLORS[what]}m{text}\033[0m" if what in COLORS and color_on() else text
+
+
+def label(it, color=False):
+    tags = "".join(paint(f"[{t}]", t) if color else f"[{t}]" for t in it.get("tags", []))
     return f"F{it['id']} {tags} {it['text']}".replace("  ", " ")
 
 
@@ -476,7 +499,7 @@ def digest(project, statuses=("open", "park"), session=None, archived=False, spl
 
     def row(it):
         mark = "" if it["status"] == "open" else f" ({it['status']})"
-        return f"  {label(it)}{mark}  — {it['ts'][:10]}"
+        return f"  {label(it, color=True)}{mark}  — {it['ts'][:10]}"
 
     lines = [f"findings: {project}"]
     if not split:
@@ -727,7 +750,7 @@ def sessions(items, ide=None):
     for _, sid, info, kind, group in rows:
         if info:
             when = time.strftime("%Y-%m-%d %H:%M", time.localtime(info["last"]))
-            head = f"{kind}  {sid}  {info['cwd'] or '?'}  last {when} ({ago(info['last'])})"
+            head = f"{kind}  {sid}  {info['cwd'] or '?'}  " + paint(f"last {when} ({ago(info['last'])})", "last")
         elif sid:
             head = (f"{kind or '?'}  {sid}  {group[0].get('cwd') or '?'}  "
                     "— transcript gone, no resume")
@@ -738,7 +761,7 @@ def sessions(items, ide=None):
             block.append(f"  title:  {info['title']}")
         for it in group:
             mark = "" if it["status"] == "open" else f" ({it['status']})"
-            block.append(f"  {label(it)}{mark}  — {it['ts'][:10]}")
+            block.append(f"  {label(it, color=True)}{mark}  — {it['ts'][:10]}")
         if kind:
             resume, fresh = RESUME[kind]
             if info:
@@ -853,6 +876,12 @@ Used by the hooks and the assistant, rarely by hand:
   findings record --cwd DIR          records the section of a reply read from stdin
   findings add --where W --text T [--tag related|unrelated|urgent]
   findings compact                   one record per finding; old done ones go to the archive
+
+Colours, in a terminal only, the same in every listing:
+  last 2026-10-19 10:31 (3m ago)   bright green
+  [related]   cyan     [unrelated]   yellow     [urgent]   bold bright red
+  NO_COLOR=1 or FINDINGS_COLOR=never turns them off; FINDINGS_COLOR=always keeps
+  them in a pipe, for example: FINDINGS_COLOR=always findings sessions | less -R
 
 Ledger: {ledger}
 """
