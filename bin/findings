@@ -29,6 +29,12 @@ session happened to run in. It also carries the session that found it.
   findings compact                                     one record per finding;
                                                        old done to the archive
   findings list --archive [--all]                      what compaction archived
+  findings sessions [--ide claude|codex|opencode] [--scope all|project]
+                  [--status S,...]                     open findings by the session
+                                                       that found them, with resume
+                                                       and fresh-session commands
+  findings brief  ID...                                a prompt to fix them in a
+                                                       fresh session
 
 IDs are global and sequential, so F7 means one finding whatever the project:
 3, F3, 4-9 and 3,5 are all accepted by `set`.
@@ -567,12 +573,237 @@ def projects(archived=False):
     return sorted({it.get("project") for it in load(archived=archived).values() if it.get("project")})
 
 
+# ── sessions: where each finding came from, for a person at a terminal ──────
+#
+# `sessions` and `brief` run in a plain shell, not in an assistant: read inside
+# a long session, every line of this output would be paid again on each later
+# call. The ledger knows the session id; the IDE's own store knows the rest —
+# which IDE, the directory to resume from, a title, the last activity. Read
+# from disk only, no model.
+
+RESUME = {
+    "claude": ("claude --resume {id}", 'claude "$(findings brief {ids})"'),
+    "codex": ("codex resume {id}", 'codex "$(findings brief {ids})"'),
+    "opencode": ("opencode --session {id}", 'opencode --prompt "$(findings brief {ids})"'),
+}
+
+
+def _home(var, default):
+    return os.environ.get(var) or os.path.expanduser(default)
+
+
+def _lines(path, needles):
+    """JSON objects of the lines that contain one of the needles. A Claude Code
+    transcript runs to tens of megabytes; parsing only the lines that can
+    matter keeps `sessions` quick."""
+    try:
+        with open(path, encoding="utf-8", errors="replace") as f:
+            for line in f:
+                if any(n in line for n in needles):
+                    try:
+                        yield json.loads(line)
+                    except ValueError:
+                        continue
+    except OSError:
+        return
+
+
+def _claude(sid):
+    import glob
+    root = os.path.join(_home("CLAUDE_CONFIG_DIR", "~/.claude"), "projects")
+    hits = glob.glob(os.path.join(glob.escape(root), "*", glob.escape(sid) + ".jsonl"))
+    if not hits:
+        return None
+    cwd = custom = ai = None
+    for e in _lines(hits[0], ('"cwd"', 'Title"')):
+        if cwd is None and e.get("cwd"):
+            # The first cwd is where `claude` was started, and --resume finds
+            # the session only from there: the store is keyed by that directory.
+            cwd = e["cwd"]
+        if e.get("type") == "custom-title" and e.get("customTitle"):
+            custom = e["customTitle"]
+        elif e.get("type") == "ai-title" and e.get("aiTitle"):
+            ai = e["aiTitle"]
+    return {"ide": "claude", "cwd": cwd, "title": custom or ai,
+            "last": os.path.getmtime(hits[0])}
+
+
+def _codex(sid):
+    import glob
+    home = _home("CODEX_HOME", "~/.codex")
+    hits = glob.glob(os.path.join(glob.escape(home), "sessions", "*", "*", "*",
+                                  "rollout-*-" + glob.escape(sid) + ".jsonl"))
+    if not hits:
+        return None
+    cwd = title = None
+    for e in _lines(hits[0], ('"session_meta"',)):
+        cwd = (e.get("payload") or {}).get("cwd")
+        break
+    for e in _lines(os.path.join(home, "session_index.jsonl"), (sid,)):
+        if e.get("id") == sid and e.get("thread_name"):
+            title = e["thread_name"]
+    return {"ide": "codex", "cwd": cwd, "title": title, "last": os.path.getmtime(hits[0])}
+
+
+def _opencode(sid):
+    import pathlib
+    import sqlite3
+    db = os.path.join(_home("OPENCODE_DATA_DIR", "~/.local/share/opencode"), "opencode.db")
+    if not os.path.exists(db):
+        return None
+    try:
+        con = sqlite3.connect(pathlib.Path(db).resolve().as_uri() + "?mode=ro", uri=True, timeout=5)
+        try:
+            row = con.execute("SELECT directory, title, time_updated FROM session WHERE id = ?",
+                              (sid,)).fetchone()
+        finally:
+            con.close()
+    except sqlite3.Error:
+        return None
+    if not row:
+        return None
+    return {"ide": "opencode", "cwd": row[0], "title": row[1], "last": (row[2] or 0) / 1000}
+
+
+_SESSIONS = {}
+
+
+def session_info(sid):
+    """{ide, cwd, title, last} of a session, or None when no IDE store on this
+    machine has it. opencode ids start with `ses_`; Claude Code and Codex ids
+    are both UUIDs, told apart by where the transcript is."""
+    if not sid:
+        return None
+    if sid not in _SESSIONS:
+        order = (_opencode,) if sid.startswith("ses_") else (_claude, _codex)
+        _SESSIONS[sid] = next((r for r in (f(sid) for f in order) if r), None)
+    return _SESSIONS[sid]
+
+
+def ide_of(sid):
+    """The IDE by the shape of the id, for a session whose transcript is gone:
+    opencode `ses_…`, Codex a UUID v7, Claude Code a UUID v4."""
+    if not sid:
+        return None
+    if sid.startswith("ses_"):
+        return "opencode"
+    m = re.match(r"^[0-9a-f]{8}-[0-9a-f]{4}-([47])[0-9a-f]{3}-", sid)
+    return {"7": "codex", "4": "claude"}.get(m.group(1)) if m else None
+
+
+def ago(epoch):
+    s = max(0, time.time() - epoch)
+    for unit, n in (("d", 86400), ("h", 3600), ("m", 60)):
+        if s >= n:
+            return f"{int(s // n)}{unit} ago"
+    return "just now"
+
+
+def sh(path):
+    import shlex
+    return shlex.quote(path) if path else "."
+
+
+def sessions(items, ide=None):
+    """The open findings grouped by the session that found them, newest
+    activity first, each group with the commands to resume it or to fix its
+    findings in a fresh session."""
+    groups = {}
+    for it in items:
+        groups.setdefault(it.get("session"), []).append(it)
+    rows = []
+    for sid, group in groups.items():
+        info = session_info(sid)
+        kind = info["ide"] if info else ide_of(sid)
+        if ide and kind != ide:
+            continue
+        group.sort(key=lambda it: it["id"])
+        # Newest activity first; a session with no transcript left sorts by
+        # its newest finding.
+        last = info["last"] if info else max(stamp(it["ts"]) for it in group)
+        rows.append((last, sid, info, kind, group))
+    rows.sort(key=lambda r: -r[0])
+    out = []
+    for _, sid, info, kind, group in rows:
+        if info:
+            when = time.strftime("%Y-%m-%d %H:%M", time.localtime(info["last"]))
+            head = f"{kind}  {sid}  {info['cwd'] or '?'}  last {when} ({ago(info['last'])})"
+        elif sid:
+            head = (f"{kind or '?'}  {sid}  {group[0].get('cwd') or '?'}  "
+                    "— transcript gone, no resume")
+        else:
+            head = f"?  (no session id)  {group[0].get('cwd') or '?'}"
+        block = [head]
+        if info and info.get("title"):
+            block.append(f"  title:  {info['title']}")
+        for it in group:
+            mark = "" if it["status"] == "open" else f" ({it['status']})"
+            block.append(f"  {label(it)}{mark}  — {it['ts'][:10]}")
+        if kind:
+            resume, fresh = RESUME[kind]
+            if info:
+                block.append(f"  resume: cd {sh(info['cwd'])} && {resume.format(id=sid)}")
+            # The fix belongs where the defect is: the project the ledger
+            # filed it under, which is not always where the session ran.
+            by_project = {}
+            for it in group:
+                by_project.setdefault(it.get("project"), []).append(f"F{it['id']}")
+            for p, ids in by_project.items():
+                block.append(f"  fresh:  cd {sh(p)} && {fresh.format(ids=' '.join(ids))}")
+        out.append("\n".join(block))
+    return "\n\n".join(out)
+
+
+BRIEF_HEAD = (
+    "Fix the findings below. They come from the findings ledger, recorded in "
+    "another session; its investigation is not in this context, so check each "
+    "one against the files before changing anything. For each: confirm the "
+    "defect still exists, fix it, verify with a command, then run "
+    "`findings done F<id>`. Already fixed: `findings done F<id>`, quoting the "
+    "evidence. Not a defect: `findings skip F<id>`, saying why.")
+
+
+def brief(ids):
+    """A prompt for a fresh session: what each finding says, where it was
+    filed, and the session it came from."""
+    items = load()
+    missing = [i for i in ids if i not in items]
+    if missing:
+        print(f"findings: no such id: {', '.join(f'F{i}' for i in missing)}", file=sys.stderr)
+        return 2
+    out = [BRIEF_HEAD]
+    for i in ids:
+        it = items[i]
+        info = session_info(it.get("session"))
+        tags = "".join(f"[{t}]" for t in it.get("tags", []))
+        found = f"{it['ts'][:10]}, cwd {it.get('cwd') or '?'}"
+        if info:
+            found = f"{info['ide']} session {it['session']}, {found}"
+            if info.get("title"):
+                found += f", session title: {info['title']}"
+        out.append("\n".join([
+            f"F{i} {tags} — status {it['status']} since {it['status_ts'][:10]}",
+            f"project: {it.get('project') or '?'}",
+            f"where:   {it.get('where') or '?'}",
+            f"found:   {found}",
+            f"finding: {it['text']}",
+        ]))
+    print("\n\n".join(out))
+    return 0
+
+
 def main(argv):
     ap = argparse.ArgumentParser(prog="findings", description=__doc__.split("\n\n")[0])
     sub = ap.add_subparsers(dest="cmd")
-    for name in ("list", "count", "set", "add", "record", "compact", "reserve"):
+    for name in ("list", "count", "set", "add", "record", "compact", "reserve", "sessions", "brief"):
         s = sub.add_parser(name)
         s.add_argument("-p", "--project", default=None, help="a path inside the project (default: cwd)")
+        if name == "sessions":
+            s.add_argument("--ide", choices=tuple(RESUME), default=None, help="one IDE only")
+            s.add_argument("--scope", choices=("project", "all"), default="all", help="default: all")
+            s.add_argument("--status", default="open", help="comma list, or 'any' (default: open)")
+        if name == "brief":
+            s.add_argument("ids", nargs="+")
         if name == "list":
             s.add_argument("--all", action="store_true", help="same as --scope all")
             s.add_argument("--scope", choices=("session", "project", "all"), default=None,
@@ -635,6 +866,18 @@ def main(argv):
             targets = projects() if scope == "all" else [project]
             blocks = [b for b in (digest(p, statuses, split=sid) for p in targets) if b]
             print("\n\n".join(blocks) if blocks else "findings: nothing open")
+    elif a.cmd == "sessions":
+        statuses = STATUSES if a.status == "any" else tuple(a.status.split(","))
+        items = [it for it in load(None if a.scope == "all" else project).values()
+                 if it["status"] in statuses]
+        print(sessions(items, a.ide) or "findings: nothing " + "/".join(statuses))
+    elif a.cmd == "brief":
+        try:
+            ids = parse_ids(a.ids)
+        except ValueError:
+            print(f"findings: not an id: {' '.join(a.ids)!r}", file=sys.stderr)
+            return 2
+        return brief(ids)
     elif a.cmd == "count":
         open_, urgent, parked = counts(project)
         print(f"{len(open_)} open, {len(urgent)} urgent, {parked} parked — {project}")

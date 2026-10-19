@@ -95,6 +95,33 @@ a line saying so.
 `fix` turns it into work; it is marked `done` once the fix is verified. A finding
 that comes back after `done` is recorded again — that is a regression.
 
+### From a terminal: which session found it
+
+Run `findings sessions` in a terminal, not in the assistant. In a long session
+the assistant reads every line of its output again on each later call. The
+command groups the open findings by the session that found them, newest first.
+The ledger does not keep the IDE, the directory of the session, its title or its
+last activity. The command reads them from the IDE's own files.
+
+```
+$ findings sessions
+claude  3f2a9c1e-5b7d-4e2a-9c1f-8a6b2d4e0f13  /srv/app  last 2026-10-19 10:31 (3m ago)
+  title:  Migration rollback
+  F12 [related] `/srv/app/db/migrate.py:88` — the rollback skips the index it created …
+  resume: cd /srv/app && claude --resume 3f2a9c1e-5b7d-4e2a-9c1f-8a6b2d4e0f13
+  fresh:  cd /srv/app && claude "$(findings brief F12)"
+```
+
+`resume` returns to that session. `fresh` starts a new session in the project of
+the finding, with `findings brief` as the prompt. The brief gives the text of
+each finding, its project and the session it came from. It also gives the task:
+check that the defect is still there, fix it, verify the fix, run
+`findings done`.
+
+When a transcript is gone, there is no `resume` line. The `fresh` line stays: the
+IDE is known from the shape of the session id. `--ide claude|codex|opencode`
+shows one IDE, `--scope project` one project.
+
 ## Where a finding is kept
 
 In one file on your machine: `~/.local/state/findings/ledger.jsonl`. Nothing is
@@ -143,6 +170,8 @@ Needs python 3.8+ and, for filing by repository, git. No packages.
 findings list [--scope session|project|all] [--session ID] [--status open,park,skip,done|any] [-p PATH]
 findings count [-p PATH]  # one line, for hooks and prompts
 findings set park 4-9     # or simply: findings park 4-9
+findings sessions [--ide claude|codex|opencode] [--scope all|project] [--status open|any]
+findings brief F12 F14    # the prompt for a fresh session
 
 # -p PATH: the project of PATH instead of the current directory
 ```

@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.10.0 — 2026-10-19
+
+- **`findings sessions`: the open findings by the session that found them.**
+  It runs in a terminal, not in the assistant, so a long session does not read
+  its output again on every call. The ledger keeps the session id. The IDE, the
+  directory of the session, its title and its last activity come from the IDE's
+  own files: the Claude Code transcript, the Codex rollout and
+  `session_index.jsonl`, the `session` table of `opencode.db`. Each session
+  ends with a `resume` command and a `fresh` command for each project its
+  findings were filed under. When a transcript is gone, the IDE is known from the
+  shape of the id, and only `fresh` is shown. `--ide` keeps one IDE,
+  `--scope project` one project.
+- **`findings brief F<id>…`: the prompt for a fresh session.** It gives each
+  finding with its project, place and source session, and the task: check that
+  the defect is still there, fix it, verify the fix, run `findings done`.
+
 ## 0.9.3 — 2026-10-19
 
 - **The chat shows the ledger's ids, not invented ones.** A model that skipped

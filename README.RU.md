@@ -95,6 +95,32 @@ ID сессии в Claude Code берётся из `$CLAUDE_CODE_SESSION_ID`. Co
 `done`. Если находка со статусом `done` появляется снова, она записывается заново:
 это регрессия.
 
+### Из терминала: какая сессия нашла
+
+`findings sessions` запускайте в терминале, а не в ассистенте: в длинной сессии
+ассистент заново читает каждую строку этого вывода при каждом следующем вызове.
+Команда группирует открытые находки по сессиям, которые их нашли, свежие сверху.
+IDE, каталог сессии, её заголовок и время последней активности журнал не хранит,
+их команда берёт из файлов самой IDE.
+
+```
+$ findings sessions
+claude  3f2a9c1e-5b7d-4e2a-9c1f-8a6b2d4e0f13  /srv/app  last 2026-10-19 10:31 (3m ago)
+  title:  Migration rollback
+  F12 [related] `/srv/app/db/migrate.py:88` — откат не удаляет созданный индекс …
+  resume: cd /srv/app && claude --resume 3f2a9c1e-5b7d-4e2a-9c1f-8a6b2d4e0f13
+  fresh:  cd /srv/app && claude "$(findings brief F12)"
+```
+
+`resume` возвращает в ту сессию. `fresh` открывает новую сессию в проекте
+находки, и её промпт — вывод `findings brief`. В нём текст каждой находки, её
+проект и сессия, где её нашли. Там же задача: убедиться, что дефект на месте,
+исправить его, проверить исправление и выполнить `findings done`.
+
+Если транскрипта сессии больше нет, нет и строки `resume`. Строка `fresh`
+остаётся: IDE определяется по виду ID сессии. `--ide claude|codex|opencode`
+оставляет одну IDE, `--scope project` — один проект.
+
 ## Где хранятся находки
 
 В одном файле на вашей машине: `~/.local/state/findings/ledger.jsonl`. В
@@ -146,6 +172,8 @@ cd findings
 findings list [--scope session|project|all] [--session ID] [--status open,park,skip,done|any] [-p PATH]
 findings count [-p PATH]  # one line, for hooks and prompts
 findings set park 4-9     # or simply: findings park 4-9
+findings sessions [--ide claude|codex|opencode] [--scope all|project] [--status open|any]
+findings brief F12 F14    # the prompt for a fresh session
 
 # -p PATH: the project of PATH instead of the current directory
 ```

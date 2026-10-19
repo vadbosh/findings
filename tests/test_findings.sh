@@ -241,5 +241,53 @@ check "an unknown id anywhere changes nothing"        "nothing changed" "$out"
 check "F$m1 still open after the unknown id"         "F$m1 [related]" "$(f list -p "$A" --scope project --status open)"
 check "a verb with no ids is refused"                 "no ids after \`fix\`" "$(f skip "F$m1" fix)"
 
+# `sessions` and `brief`: the IDE stores are fakes under $TMP, one per IDE.
+export CLAUDE_CONFIG_DIR="$TMP/claude" CODEX_HOME="$TMP/codex" OPENCODE_DATA_DIR="$TMP/oc"
+SC=aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa   # Claude Code: UUID v4
+SX=01a00000-2222-7222-8222-bbbbbbbbbbbb   # Codex: UUID v7
+SG=01a00000-3333-7333-8333-cccccccccccc   # Codex, transcript gone
+SO=ses_test1                               # opencode
+mkdir -p "$CLAUDE_CONFIG_DIR/projects/-a" "$CODEX_HOME/sessions/2026/10/19" "$OPENCODE_DATA_DIR"
+printf '%s\n' "{\"type\":\"user\",\"cwd\":\"$A\"}" '{"type":"ai-title","aiTitle":"Title A"}' \
+    > "$CLAUDE_CONFIG_DIR/projects/-a/$SC.jsonl"
+printf '%s\n' "{\"type\":\"session_meta\",\"payload\":{\"id\":\"$SX\",\"cwd\":\"$B\"}}" \
+    > "$CODEX_HOME/sessions/2026/10/19/rollout-2026-10-19T00-00-00-$SX.jsonl"
+printf '%s\n' "{\"id\":\"$SX\",\"thread_name\":\"Title B\"}" > "$CODEX_HOME/session_index.jsonl"
+python3 - "$OPENCODE_DATA_DIR/opencode.db" "$A" <<'PY'
+import sqlite3, sys
+con = sqlite3.connect(sys.argv[1])
+con.execute("CREATE TABLE session (id text, directory text, title text, time_updated integer)")
+con.execute("INSERT INTO session VALUES ('ses_test1', ?, 'Title O', 1760000000000)", (sys.argv[2],))
+con.commit()
+PY
+id_of() { sed -n 's/^added F\([0-9]*\).*/\1/p'; }
+sc="$(f add --where "$B/sub/file.txt" --text "session claude finding" --cwd "$A" --session "$SC" | id_of)"
+# Different places and words: the duplicate check would fold similar ones.
+sx="$(f add --where "$B/sub" --text "codex saw a stale lock" --cwd "$B" --session "$SX" | id_of)"
+sg="$(f add --where "$A/sub/file.txt" --text "gone session left a typo" --cwd "$A" --session "$SG" | id_of)"
+so="$(f add --where "$A/sub" --text "opencode: wrong permissions on the dir" --cwd "$A" --session "$SO" | id_of)"
+out="$(f sessions)"
+check "sessions: claude head, dir from the transcript" "claude  $SC  $A  last" "$out"
+check "sessions: claude title"                     "title:  Title A" "$out"
+check "sessions: claude resume from its directory" "resume: cd $A && claude --resume $SC" "$out"
+check "sessions: fresh in the finding's project"   "fresh:  cd $B && claude \"\$(findings brief F$sc)\"" "$out"
+check "sessions: codex resume and title"           "codex resume $SX" "$out"
+check "sessions: codex title from session_index"   "title:  Title B" "$out"
+check "sessions: codex fresh"                      "cd $B && codex \"\$(findings brief F$sx)\"" "$out"
+check "sessions: opencode from its database"       "opencode --session $SO" "$out"
+check "sessions: opencode fresh takes --prompt"    "opencode --prompt \"\$(findings brief F$so)\"" "$out"
+check "sessions: a gone transcript says so"        "codex  $SG  $A  — transcript gone, no resume" "$out"
+check "sessions: a gone session keeps its fresh"   "codex \"\$(findings brief F$sg)\"" "$out"
+absent "sessions: no resume for a gone session"    "resume $SG" "$out"
+out="$(f sessions --ide codex)"
+absent "sessions --ide codex leaves claude out"    "$SC" "$out"
+check "sessions --ide codex keeps a gone codex one" "$SG" "$out"
+out="$(f brief "F$sc")"
+check "brief: tells the model to finish with done" "findings done F<id>" "$out"
+check "brief: the session it came from"            "found:   claude session $SC" "$out"
+check "brief: the session title"                   "session title: Title A" "$out"
+check "brief: the project it was filed under"      "project: $B" "$out"
+check "brief: an unknown id is refused"            "no such id: F99999" "$(f brief F99999)"
+
 echo "findings: passed $pass, failed $fail"
 [ "$fail" -eq 0 ]
