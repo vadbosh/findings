@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.10.7 — 2026-10-19
+
+- **One decision for a whole session or project.**
+  `findings skip --session 50af0012` and `findings done -p /srv/app` decide
+  every open or parked finding the filter selects; both filters together
+  narrow it further, and `--status` picks other statuses. `open` takes the
+  parked, skipped and done ones by default. The command lists the findings and
+  asks first; `--yes` applies without asking, and with no terminal to ask on it
+  is required. `fix` still takes ids only: a fix is work for the assistant.
+
 ## 0.10.6 — 2026-10-19
 
 - **A negation defers nothing** (F397). The Stop hook blocked the reply

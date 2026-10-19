@@ -653,6 +653,51 @@ def decide(args):
     return 0
 
 
+def decide_filtered(argv):
+    """`findings skip --session ID`, `findings done --project PATH`: one
+    decision for every finding a filter selects. It lists them and asks first;
+    --yes skips the question, and with no terminal to ask on it is required."""
+    ap = argparse.ArgumentParser(prog=f"findings {argv[0].lower()}")
+    ap.add_argument("--session", default=None, help="session id or its prefix")
+    ap.add_argument("-p", "--project", default=None, help="a path inside the project")
+    ap.add_argument("--status", default=None,
+                    help="comma list (default: open,park; for `open`: park,skip,done)")
+    ap.add_argument("--yes", "-y", action="store_true", help="apply without asking")
+    verb = argv[0].lower()
+    if verb == "fix":
+        print("findings: fix takes ids, not a filter — a fix is work for the assistant",
+              file=sys.stderr)
+        return 2
+    a = ap.parse_args(argv[1:])
+    if not a.session and not a.project:
+        print("findings: name --session ID or --project PATH", file=sys.stderr)
+        return 2
+    statuses = tuple(a.status.split(",")) if a.status else (
+        ("park", "skip", "done") if verb == "open" else ("open", "park"))
+    project = reading_project(a.project) if a.project else None
+    items = sorted((it for it in load(project).values()
+                    if it["status"] in statuses and it["status"] != verb
+                    and (not a.session or of_session(it, a.session))),
+                   key=lambda it: it["id"])
+    if not items:
+        print(f"findings: nothing to {verb} — no {'/'.join(statuses)} finding matches")
+        return 0
+    for it in items:
+        print(f"  {label(it, color=True)} ({it['status']})  — {it['ts'][:10]}")
+    if not a.yes:
+        if not sys.stdin.isatty():
+            print(f"findings: {len(items)} to {verb}; no terminal to ask on — add --yes",
+                  file=sys.stderr)
+            return 2
+        answer = input(f"{verb} these {len(items)}? [y/N] ").strip().lower()
+        if answer not in ("y", "yes", "д", "да"):
+            print("findings: nothing changed")
+            return 1
+    append(None, [{"op": "set", "id": it["id"], "ts": now(), "status": verb} for it in items])
+    print(f"{verb}: " + ", ".join("F%d" % it["id"] for it in items))
+    return 0
+
+
 def projects(archived=False):
     return sorted({it.get("project") for it in load(archived=archived).values() if it.get("project")})
 
@@ -930,6 +975,13 @@ Decide in a terminal. Only a fix needs the assistant; the rest is one command:
 
   A line with one unknown id changes nothing.
 
+  By filter, every open or parked finding it selects (asks first; --yes does not):
+  findings skip --session 50af0012   DECLINES all that session found
+  findings done -p /srv/app          MARKS all of the project of /srv/app fixed
+  findings park --session 50af0012 -p /srv/app   both filters at once
+  findings open --session 50af0012   REOPENS its parked, skipped and done ones
+  --status S picks other statuses. A fix takes ids only: it is work for the IDE.
+
 Which session found what:
 
   findings sessions                  LISTS the open findings by the session that found them,
@@ -1028,6 +1080,9 @@ def main(argv):
     # `findings park 4-9` reads like the chat answer it comes from, and so does
     # `findings skip F80 fix F85` — several decisions in one line.
     if argv and argv[0].lower() in VERBS:
+        if any(w.split("=")[0] in ("--session", "--project", "-p", "--status", "--yes", "-y")
+               for w in argv[1:]):
+            return decide_filtered(argv)
         return decide(argv)
     if argv and argv[0] in ("list", "sessions"):
         argv = argv[:1] + path_scope(argv[1:])

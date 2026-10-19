@@ -201,6 +201,8 @@ Needs python 3.8+ and, for filing by repository, git. No packages.
 findings list [--scope session|project|all] [--session ID] [--status open,park,skip,done|any] [-p PATH]
 findings count [-p PATH]  # one line, for hooks and prompts
 findings set park 4-9     # or simply: findings park 4-9
+findings skip --session 50af0012 --yes   # every open or parked finding of that session
+findings done -p /srv/app               # every one of that project; asks first without --yes
 findings sessions [PATH] [--ide claude|codex|opencode] [--scope all|project] [--status open|any]
 findings list /srv/app   # the project of /srv/app; also --scope /srv/app
 findings brief F12 F14    # the prompt for a fresh session

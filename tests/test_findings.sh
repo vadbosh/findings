@@ -297,6 +297,21 @@ check "opencode: OPENCODE_DB names the database"   "opencode --session $SO" \
 mkdir -p "$TMP/xdg/opencode" && cp "$TMP/oc/opencode.db" "$TMP/xdg/opencode/"
 check "opencode: XDG_DATA_HOME is honoured"        "opencode --session $SO" \
     "$(OPENCODE_DATA_DIR='' XDG_DATA_HOME="$TMP/xdg" f sessions)"
+# One decision for every finding a filter selects.
+out="$(f skip --session "$SC" < /dev/null)"
+check "filter: no terminal and no --yes refuses"   "no terminal to ask on — add --yes" "$out"
+absent "filter: the refusal changes nothing"       "skip: F$sc" "$out"
+out="$(f skip --session "$SC" --yes)"
+check "filter: --session --yes applies"            "skip: F$sc" "$out"
+check "filter: the finding is skipped"             "F$sc session claude finding (skip)" "$(f list --scope all --status skip)"
+check "filter: open --session brings it back"      "open: F$sc" "$(f open --session "$SC" --yes)"
+out="$(f park -p "$B" --yes)"
+check "filter: --project parks that project"       "F$sx" "$out"
+absent "filter: other projects untouched"          "F$so" "$out"
+f open -p "$B" --yes >/dev/null
+check "filter: fix takes no filter"                "fix takes ids, not a filter" "$(f fix --session "$SC")"
+check "filter: a filter is required"               "name --session ID or --project PATH" "$(f skip --yes)"
+
 # A path where a project goes: positional, or in --scope.
 check "list PATH: the project of that path"        "findings: $B" "$(cd "$A" && f list "$B")"
 check "list --scope PATH: the same"                "findings: $B" "$(cd "$A" && f list --scope "$B/sub")"
