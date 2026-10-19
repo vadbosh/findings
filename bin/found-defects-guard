@@ -42,7 +42,10 @@ PROPOSALS = re.compile(r"^#{1,6}\s*(предлагаю|proposals)\s*:?\s*$", re.
 DEFER = [
     # Russian
     # singular only: "отдельные вопросы" counts questions, it defers nothing
-    r"отдельн(ая|ую|ой|ый|ым|ого)\s+(задач|вопрос|тикет|фикс)",
+    # a negation defers nothing: "отдельной задачи нет", "не отдельная задача"
+    # (F397). \b after \w* keeps the lookahead from backtracking into the word.
+    r"(?<!не\s)(?<!без\s)отдельн(ая|ую|ой|ый|ым|ого)\s+(задач|вопрос|тикет|фикс)\w*\b"
+    r"(?!\s+(нет|не\s+нужн|не\s+требу))",
     r"(исправ|поправ|почин|чин)\w*\s+отдельно",
     # "нашёл и исправил" reports a fix, it defers nothing
     r"(ещё|еще|также|заодно|попутно|кстати|параллельно)[,]?\s+(я\s+)?"
@@ -52,7 +55,7 @@ DEFER = [
     r"(вне|за)\s+рамк\w+\s+(задач|текущ)",
     r"вне\s+(задачи|скоупа)",
     # English
-    r"\bseparate\s+(task|issue|ticket|pr|fix|change)\b",
+    r"(?<!\bnot\sa\s)(?<!\bno\s)\bseparate\s+(task|issue|ticket|pr|fix|change)\b",
     # lower case only: "Out of scope" is also a ticket section name
     r"(?-i:\bout\s+of\s+scope\b)",
     r"\bunrelated\s+(to|bug|issue|problem)\b",

@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.10.6 — 2026-10-19
+
+- **A negation defers nothing** (F397). The Stop hook blocked the reply
+  "F396 закрыта сейчас, отдельной задачи нет" as a deferred finding: the
+  pattern matched "отдельной задачи" and did not read the "нет" after it. The
+  pattern now passes "отдельной задачи нет", "не отдельная задача" and
+  "отдельной задачи не нужно", and in English "no separate task" and "not a
+  separate task". "…как часть отдельной задачи" still blocks.
+
 ## 0.10.5 — 2026-10-19
 
 - **A path names the project to list** (F396). `findings list /srv/app` and
