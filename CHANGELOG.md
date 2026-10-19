@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.10.9 — 2026-10-19
+
+- **A ready answer may decide this session's earlier findings** (F398). The
+  Stop hook blocked `fix F397 · done F395`: F395 was not an item of the section,
+  so it was taken for an invented id. An id this session recorded before is a
+  decision on it, and passes. An id from another session still blocks, as
+  `park F1-F3` did.
+
 ## 0.10.8 — 2026-10-19
 
 - **`findings --help` explains decisions by filter in full.** A section of its

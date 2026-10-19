@@ -138,8 +138,15 @@ out="$(run "Готово.${NL}${NL}## Найдено попутно${NL}1. [св
 if ! printf '%s' "$out" | jq -e 'has("decision")' >/dev/null 2>&1; then pass=$((pass + 1)); [ "$QUIET" -eq 1 ] || echo "  ok    bare items: never a second block"
 else fail=$((fail + 1)); echo "  FAIL  bare items blocked twice: $out"; fi
 f1="$(FINDINGS_DIR="$FINDINGS_DIR" "$HERE/../bin/findings" reserve --session t)"
-out="$(run "Готово.${NL}${NL}## Найдено попутно${NL}1. $f1: [связано] \`/tmp/b3.txt:1\` — с номером — x. Исправить?${NL}${NL}Решение одной строкой: /findings park F1-F3")"
-check_msg "foreign ids in the ready answer: reason" "the ready answer names F1, F2, F3" "$(printf '%s' "$out" | jq -r '.reason // ""')"
+# Another session's finding in the ready answer is foreign; one this session
+# recorded earlier is a decision on it, as `fix F397 · done F395` was (F398).
+fo="$(FINDINGS_DIR="$FINDINGS_DIR" "$HERE/../bin/findings" add --where /tmp/other.txt --text "found by another session" --session other | sed -n 's/^added \(F[0-9]*\).*/\1/p')"
+mine="$(FINDINGS_DIR="$FINDINGS_DIR" "$HERE/../bin/findings" add --where /tmp/mine.txt --text "found earlier in this session" --session t | sed -n 's/^added \(F[0-9]*\).*/\1/p')"
+out="$(run "Готово.${NL}${NL}## Найдено попутно${NL}1. $f1: [связано] \`/tmp/b3.txt:1\` — с номером — x. Исправить?${NL}${NL}Решение одной строкой: /findings park $fo")"
+check_msg "foreign ids in the ready answer: reason" "the ready answer names $fo" "$(printf '%s' "$out" | jq -r '.reason // ""')"
+out="$(run "Готово.${NL}${NL}## Найдено попутно${NL}1. $f1: [связано] \`/tmp/b3.txt:1\` — с номером — x. Исправить?${NL}${NL}Решение одной строкой: /findings fix $f1 · done $mine${NL}fix — исправить · park — отложить · skip — отклонить")"
+if ! printf '%s' "$out" | jq -e 'has("decision")' >/dev/null 2>&1; then pass=$((pass + 1)); [ "$QUIET" -eq 1 ] || echo "  ok    an earlier finding of this session in the ready answer passes (F398)"
+else fail=$((fail + 1)); echo "  FAIL  own earlier id blocked: $out"; fi
 out="$(run "Готово.${NL}${NL}## Найдено попутно${NL}1. $f1: [связано] \`/tmp/b3.txt:1\` — с номером — x. Исправить?${NL}${NL}Решение одной строкой: /findings park $f1${NL}fix — исправить · park — отложить · skip — отклонить")"
 if [ -z "$out" ]; then pass=$((pass + 1)); [ "$QUIET" -eq 1 ] || echo "  ok    a section printed again with its ids: no block, no notice"
 else fail=$((fail + 1)); echo "  FAIL  reprint with ids: $out"; fi

@@ -206,19 +206,43 @@ def ledger_record(reply, payload):
     item — when the reply did not carry the ids itself, "" otherwise; and the
     recorded items."""
     try:
+        findings = findings_module()
+        items = findings.record_items(reply, payload.get("cwd") or os.getcwd(),
+                                      payload.get("session_id"))
+        return findings.recorded_notice(items), items
+    except Exception:
+        return "", []
+
+
+_FINDINGS = None
+
+
+def findings_module():
+    """bin/findings, loaded once, as a module."""
+    global _FINDINGS
+    if _FINDINGS is None:
         sys.dont_write_bytecode = True
         import importlib.util
         from importlib.machinery import SourceFileLoader
         here = os.path.dirname(os.path.realpath(__file__))
         loader = SourceFileLoader("findings", os.path.join(here, "findings"))
         spec = importlib.util.spec_from_loader("findings", loader)
-        findings = importlib.util.module_from_spec(spec)
-        loader.exec_module(findings)
-        items = findings.record_items(reply, payload.get("cwd") or os.getcwd(),
-                                      payload.get("session_id"))
-        return findings.recorded_notice(items), items
+        _FINDINGS = importlib.util.module_from_spec(spec)
+        loader.exec_module(_FINDINGS)
+    return _FINDINGS
+
+
+def session_ids(session):
+    """Ids of the findings this session recorded earlier. A ready answer may
+    decide them along with the new ones — `fix F397 · done F395` — and that
+    is not a foreign id (F398). Empty when the ledger cannot be read."""
+    if not session:
+        return set()
+    try:
+        f = findings_module()
+        return {i for i, it in f.load().items() if f.of_session(it, session)}
     except Exception:
-        return "", []
+        return set()
 
 
 ANSWER_ID = re.compile(r"\bF(\d+)(?:\s*[-–]\s*F?(\d+))?")
@@ -246,7 +270,7 @@ def answer_ids(reply):
     return out
 
 
-def id_problem(text, items):
+def id_problem(text, items, session=None):
     """The ids the chat shows must be the ledger's. A model that skipped
     `findings reserve` printed bare items and a ready answer of its own,
     `park F1-F3`, naming three unrelated findings (2026-10-19). The hook
@@ -256,6 +280,8 @@ def id_problem(text, items):
         return ""
     bare = [r for r in items if r["want"] != r["id"]]
     foreign = sorted(answer_ids(text) - {r["id"] for r in items})
+    if foreign:
+        foreign = sorted(set(foreign) - session_ids(session))
     if not bare and not foreign:
         return ""
     got = ", ".join(f"{r['n']} → F{r['id']} ({r['project']})" for r in items)
@@ -334,7 +360,7 @@ def main():
         for p in (notice, help_notice(text, ids, command_name(payload))):
             if p and p not in parts:
                 parts.append(p)
-        ids_wrong = id_problem(text, items) or ids_wrong
+        ids_wrong = id_problem(text, items, payload.get("session_id")) or ids_wrong
     if parts:
         out["systemMessage"] = "\n".join(parts)
     if (os.environ.get("FOUND_DEFECTS_GUARD", "").lower() != "off"
