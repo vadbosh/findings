@@ -126,6 +126,10 @@ The commands differ by IDE:
 | Codex | `codex resume ID` | `codex "$(findings brief F12)"` |
 | opencode | `opencode --session ID` | `opencode --prompt "$(findings brief F12)"` |
 
+On Windows the lines are for PowerShell 5.1 and 7:
+`Set-Location 'DIR'; claude (findings brief F12 | Out-String)`. This form has
+not been run on real Windows yet.
+
 When a transcript is gone, there is no `resume` line. The `fresh` line stays: the
 IDE is known from the shape of the session id.
 
@@ -193,6 +197,7 @@ findings count [-p PATH]  # one line, for hooks and prompts
 findings set park 4-9     # or simply: findings park 4-9
 findings sessions [--ide claude|codex|opencode] [--scope all|project] [--status open|any]
 findings brief F12 F14    # the prompt for a fresh session
+findings --help           # every command with an example; also -h and help
 
 # -p PATH: the project of PATH instead of the current directory
 ```

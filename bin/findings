@@ -459,8 +459,25 @@ def color_on():
         if os.environ.get("NO_COLOR") or mode == "never":
             _COLOR = False
         else:
-            _COLOR = mode == "always" or sys.stdout.isatty()
+            _COLOR = mode == "always" or (sys.stdout.isatty() and vt_on())
     return _COLOR
+
+
+def vt_on():
+    """True where a terminal reads escape codes. The Windows console does only
+    once asked to (ENABLE_VIRTUAL_TERMINAL_PROCESSING); one that refuses gets
+    plain text rather than `←[92m`."""
+    if os.name != "nt":
+        return True
+    try:
+        import ctypes
+        k = ctypes.windll.kernel32
+        h = k.GetStdHandle(-11)
+        mode = ctypes.c_uint32()
+        return bool(k.GetConsoleMode(h, ctypes.byref(mode))
+                    and k.SetConsoleMode(h, mode.value | 0x0004))
+    except Exception:
+        return False
 
 
 def paint(text, what):
@@ -605,10 +622,33 @@ def projects(archived=False):
 # from disk only, no model.
 
 RESUME = {
-    "claude": ("claude --resume {id}", 'claude "$(findings brief {ids})"'),
-    "codex": ("codex resume {id}", 'codex "$(findings brief {ids})"'),
-    "opencode": ("opencode --session {id}", 'opencode --prompt "$(findings brief {ids})"'),
+    "claude": ("claude --resume {id}", "claude {prompt}"),
+    "codex": ("codex resume {id}", "codex {prompt}"),
+    "opencode": ("opencode --session {id}", "opencode --prompt {prompt}"),
 }
+
+
+def shell():
+    """The shell the printed lines are written for: PowerShell on Windows,
+    where findings.cmd runs, a POSIX shell elsewhere. FINDINGS_SHELL overrides."""
+    return os.environ.get("FINDINGS_SHELL") or ("powershell" if os.name == "nt" else "posix")
+
+
+def run_in(path, cmd):
+    """`cmd` run from `path`. PowerShell 5.1 has no `&&`, and a POSIX-quoted
+    path means nothing to it: Set-Location, `;`, single quotes doubled."""
+    if shell() == "powershell":
+        return f"Set-Location '{(path or '.').replace(chr(39), chr(39) * 2)}'; {cmd}"
+    import shlex
+    return f"cd {shlex.quote(path) if path else '.'} && {cmd}"
+
+
+def brief_arg(ids):
+    """The brief as one argument. `"$(…)"` in PowerShell joins the lines with
+    spaces; Out-String keeps them."""
+    if shell() == "powershell":
+        return f"(findings brief {ids} | Out-String)"
+    return f'"$(findings brief {ids})"'
 
 
 def _home(var, default):
@@ -671,7 +711,14 @@ def _codex(sid):
 def _opencode(sid):
     import pathlib
     import sqlite3
-    db = os.path.join(_home("OPENCODE_DATA_DIR", "~/.local/share/opencode"), "opencode.db")
+    # opencode's own order: OPENCODE_DB, then XDG_DATA_HOME/opencode, then
+    # ~/.local/share/opencode — %USERPROFILE%\.local\share\opencode on Windows.
+    # OPENCODE_DATA_DIR is ide-sessions' name for the directory.
+    xdg = os.environ.get("XDG_DATA_HOME")
+    db = os.environ.get("OPENCODE_DB") or os.path.join(
+        os.environ.get("OPENCODE_DATA_DIR") or (os.path.join(xdg, "opencode") if xdg else
+                                                os.path.expanduser("~/.local/share/opencode")),
+        "opencode.db")
     if not os.path.exists(db):
         return None
     try:
@@ -722,10 +769,6 @@ def ago(epoch):
     return "just now"
 
 
-def sh(path):
-    import shlex
-    return shlex.quote(path) if path else "."
-
 
 def sessions(items, ide=None):
     """The open findings grouped by the session that found them, newest
@@ -765,14 +808,14 @@ def sessions(items, ide=None):
         if kind:
             resume, fresh = RESUME[kind]
             if info:
-                block.append(f"  resume: cd {sh(info['cwd'])} && {resume.format(id=sid)}")
+                block.append(f"  resume: {run_in(info['cwd'], resume.format(id=sid))}")
             # The fix belongs where the defect is: the project the ledger
             # filed it under, which is not always where the session ran.
             by_project = {}
             for it in group:
                 by_project.setdefault(it.get("project"), []).append(f"F{it['id']}")
             for p, ids in by_project.items():
-                block.append(f"  fresh:  cd {sh(p)} && {fresh.format(ids=' '.join(ids))}")
+                block.append(f"  fresh:  {run_in(p, fresh.format(prompt=brief_arg(' '.join(ids))))}")
         out.append("\n".join(block))
     return "\n\n".join(out)
 
@@ -856,6 +899,8 @@ Which session found what:
                  fresh:   cd DIR && codex "$(findings brief F12)"
     opencode     resume:  cd DIR && opencode --session ID
                  fresh:   cd DIR && opencode --prompt "$(findings brief F12)"
+  On Windows the lines are for PowerShell (5.1 and 7), for example:
+    Set-Location 'DIR'; claude (findings brief F12 | Out-String)
 
   findings brief F12 F14             PRINTS that prompt: each finding, where it is, the session
                                      it came from, and what to do

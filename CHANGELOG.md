@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.10.4 — 2026-10-19
+
+- **`findings sessions` writes its lines for PowerShell on Windows** (F395).
+  `cd DIR && …` does not run in PowerShell 5.1, and `"$(…)"` joins the lines of
+  the brief with spaces. On Windows the lines are now
+  `Set-Location 'DIR'; claude (findings brief F12 | Out-String)`.
+  `FINDINGS_SHELL=posix|powershell` picks the form by hand. Not yet run on real
+  Windows.
+- **Colour on the Windows console.** The console shows escape codes only after
+  it is asked to (virtual terminal mode). findings asks; a console that refuses
+  gets plain text.
+- **The opencode database is found where opencode puts it.** `OPENCODE_DB` and
+  `XDG_DATA_HOME` are honoured, as opencode does, before
+  `~/.local/share/opencode`.
+- **The READMEs name `findings --help`.**
+
 ## 0.10.3 — 2026-10-19
 
 - **Colours in a terminal, one per meaning.** `findings sessions` and

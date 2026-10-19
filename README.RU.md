@@ -125,6 +125,10 @@ claude  3f2a9c1e-5b7d-4e2a-9c1f-8a6b2d4e0f13  /srv/app  last 2026-10-19 10:31 (3
 | Codex | `codex resume ID` | `codex "$(findings brief F12)"` |
 | opencode | `opencode --session ID` | `opencode --prompt "$(findings brief F12)"` |
 
+На Windows строки пишутся для PowerShell 5.1 и 7:
+`Set-Location 'DIR'; claude (findings brief F12 | Out-String)`. На настоящей
+Windows эта форма ещё не запускалась.
+
 Если транскрипта сессии больше нет, нет и строки `resume`. Строка `fresh`
 остаётся: IDE определяется по виду ID сессии.
 
@@ -195,6 +199,7 @@ findings count [-p PATH]  # one line, for hooks and prompts
 findings set park 4-9     # or simply: findings park 4-9
 findings sessions [--ide claude|codex|opencode] [--scope all|project] [--status open|any]
 findings brief F12 F14    # the prompt for a fresh session
+findings --help           # every command with an example; also -h and help
 
 # -p PATH: the project of PATH instead of the current directory
 ```
