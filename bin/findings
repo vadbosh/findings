@@ -950,6 +950,7 @@ def brief(ids):
 HELP = """\
 Usage: findings [list]                             the findings of this session, or of the project
        findings done|skip|park|open ID...          decide, from any terminal
+       findings done|skip|park|open --session ID | -p PATH [--status S] [--yes]
        findings sessions [PATH] [--ide IDE] [--scope all|project] [--status S]
        findings brief ID...
        findings list [PATH] [--scope project|all] [--status S]
@@ -975,12 +976,33 @@ Decide in a terminal. Only a fix needs the assistant; the rest is one command:
 
   A line with one unknown id changes nothing.
 
-  By filter, every open or parked finding it selects (asks first; --yes does not):
-  findings skip --session 50af0012   DECLINES all that session found
-  findings done -p /srv/app          MARKS all of the project of /srv/app fixed
-  findings park --session 50af0012 -p /srv/app   both filters at once
-  findings open --session 50af0012   REOPENS its parked, skipped and done ones
-  --status S picks other statuses. A fix takes ids only: it is work for the IDE.
+Decide many at once, by filter, instead of listing ids:
+
+  findings skip --session 50af0012              DECLINES every open or parked finding
+                                                that session found, in any project
+  findings done -p /srv/app                     MARKS every open or parked finding of
+                                                the project of /srv/app fixed
+  findings park --session 50af0012 -p /srv/app  both filters: that session's findings
+                                                in that project only
+  findings skip --session 50af0012 --status open     only the open ones, not the parked
+  findings done -p /srv/app --status open,park,skip  also the skipped ones
+  findings open --session 50af0012              REOPENS its parked, skipped and done ones
+  findings skip --session 50af0012 --yes        no question: applies at once
+
+  --session ID     the full session id or its first characters, as `findings
+                   sessions` prints it
+  -p, --project P  a path; the project is found as for `findings list PATH`
+  --status S       which statuses to touch, comma list. Default: open,park; for
+                   `open`: park,skip,done. A finding already in the target status
+                   is left alone
+  --yes, -y        apply without asking
+
+  Without --yes the command lists what it selected and asks: skip these 3? [y/N]
+  y, yes or да applies; anything else changes nothing. With no terminal to ask on,
+  as when an assistant runs it, --yes is required: without it nothing changes.
+  Nothing selected: "nothing to skip", exit 0.
+  A fix takes ids only: `findings fix --session …` is refused, a fix is work for
+  the IDE. Fix them there: `findings sessions` prints the resume and fresh lines.
 
 Which session found what:
 

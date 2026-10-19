@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.10.8 — 2026-10-19
+
+- **`findings --help` explains decisions by filter in full.** A section of its
+  own, "Decide many at once, by filter", gives seven examples, each flag with
+  its default, how the question and `--yes` work, what happens with no terminal
+  or nothing selected, and why `fix` takes ids only. The usage block names the
+  form: `findings done|skip|park|open --session ID | -p PATH [--status S] [--yes]`.
+
 ## 0.10.7 — 2026-10-19
 
 - **One decision for a whole session or project.**

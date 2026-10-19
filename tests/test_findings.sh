@@ -287,6 +287,8 @@ check "--help: --ide codex spelled out"            "findings sessions --ide code
 check "--help: --ide opencode spelled out"         "findings sessions --ide opencode" "$out"
 check "--help: the opencode fresh command"         "opencode --prompt \"\$(findings brief F12)\"" "$out"
 check "--help: names the ledger file"              "Ledger: $FINDINGS_DIR/ledger.jsonl" "$out"
+check "--help: decide by filter, with --yes"       "findings skip --session 50af0012 --yes" "$out"
+check "--help: says fix takes no filter"           "A fix takes ids only" "$out"
 check "help: same as --help"                       "findings skip F12" "$(f help)"
 out="$(FINDINGS_SHELL=powershell f sessions)"
 check "powershell: resume via Set-Location and ;"  "resume: Set-Location '$A'; claude --resume $SC" "$out"
