@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.10.2 — 2026-10-19
+
+- **Each IDE has its own example.** `findings --help` showed `--ide codex` and
+  named the other two in brackets, so `--ide claude` read as missing. The help
+  now gives `--ide claude`, `--ide codex` and `--ide opencode` one line each,
+  and the `resume` and `fresh` commands of each IDE. The READMEs, in both
+  languages, give the same commands as a table and the three `--ide` examples.
+
 ## 0.10.1 — 2026-10-19
 
 - **`findings --help` shows examples, the decisions first.** It was the bare

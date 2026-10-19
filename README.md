@@ -118,9 +118,24 @@ each finding, its project and the session it came from. It also gives the task:
 check that the defect is still there, fix it, verify the fix, run
 `findings done`.
 
+The commands differ by IDE:
+
+| IDE | `resume` | `fresh` |
+|---|---|---|
+| Claude Code | `claude --resume ID` | `claude "$(findings brief F12)"` |
+| Codex | `codex resume ID` | `codex "$(findings brief F12)"` |
+| opencode | `opencode --session ID` | `opencode --prompt "$(findings brief F12)"` |
+
 When a transcript is gone, there is no `resume` line. The `fresh` line stays: the
-IDE is known from the shape of the session id. `--ide claude|codex|opencode`
-shows one IDE, `--scope project` one project.
+IDE is known from the shape of the session id.
+
+```bash
+findings sessions                    # all three IDEs
+findings sessions --ide claude       # Claude Code sessions only
+findings sessions --ide codex        # Codex sessions only
+findings sessions --ide opencode     # opencode sessions only
+findings sessions --scope project    # the findings of this project only
+```
 
 ## Where a finding is kept
 

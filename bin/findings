@@ -816,13 +816,23 @@ Which session found what:
 
   findings sessions                  LISTS the open findings by the session that found them,
                                      all three IDEs, the newest session first
-  findings sessions --ide codex      only Codex sessions (also: claude, opencode)
+  findings sessions --ide claude     only Claude Code sessions
+  findings sessions --ide codex      only Codex sessions
+  findings sessions --ide opencode   only opencode sessions
   findings sessions --scope project  only the findings of this project (-p PATH: another one)
   findings sessions --status any     also the parked, skipped and done ones
 
-  Under each session:
+  Under each session, two kinds of line:
     resume:  goes back into that session
     fresh:   starts a new session in the project of the finding, with the brief as the prompt
+
+  What they run, per IDE:
+    Claude Code  resume:  cd DIR && claude --resume ID
+                 fresh:   cd DIR && claude "$(findings brief F12)"
+    Codex        resume:  cd DIR && codex resume ID
+                 fresh:   cd DIR && codex "$(findings brief F12)"
+    opencode     resume:  cd DIR && opencode --session ID
+                 fresh:   cd DIR && opencode --prompt "$(findings brief F12)"
 
   findings brief F12 F14             PRINTS that prompt: each finding, where it is, the session
                                      it came from, and what to do

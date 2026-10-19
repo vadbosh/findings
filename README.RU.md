@@ -117,9 +117,24 @@ claude  3f2a9c1e-5b7d-4e2a-9c1f-8a6b2d4e0f13  /srv/app  last 2026-10-19 10:31 (3
 проект и сессия, где её нашли. Там же задача: убедиться, что дефект на месте,
 исправить его, проверить исправление и выполнить `findings done`.
 
+Команды у каждой IDE свои:
+
+| IDE | `resume` | `fresh` |
+|---|---|---|
+| Claude Code | `claude --resume ID` | `claude "$(findings brief F12)"` |
+| Codex | `codex resume ID` | `codex "$(findings brief F12)"` |
+| opencode | `opencode --session ID` | `opencode --prompt "$(findings brief F12)"` |
+
 Если транскрипта сессии больше нет, нет и строки `resume`. Строка `fresh`
-остаётся: IDE определяется по виду ID сессии. `--ide claude|codex|opencode`
-оставляет одну IDE, `--scope project` — один проект.
+остаётся: IDE определяется по виду ID сессии.
+
+```bash
+findings sessions                    # все три IDE
+findings sessions --ide claude       # только сессии Claude Code
+findings sessions --ide codex        # только сессии Codex
+findings sessions --ide opencode     # только сессии opencode
+findings sessions --scope project    # только находки текущего проекта
+```
 
 ## Где хранятся находки
 
