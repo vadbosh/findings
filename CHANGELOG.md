@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.9.3 — 2026-10-19
+
+- **The chat shows the ledger's ids, not invented ones.** A model that skipped
+  `findings reserve` printed its items without ids and wrote its own ready
+  answer, `park F1-F3`. Those three ids belonged to unrelated findings; the
+  items had been recorded as F383-F385. The Stop hook now continues the turn
+  once when an item carries no id, or when the ready answer names an id that
+  is not in the section. Its instruction lists the id and project each item
+  got (`1 → F383 (/opt/…)`), and the model prints the section again with
+  them. A section printed with the right ids passes, and the hook no longer
+  shows "already recorded" for it.
+
 ## 0.9.2 — 2026-10-16
 
 - **The OpenCode plugin loads in OpenCode 2.** OpenCode 2 accepts only a

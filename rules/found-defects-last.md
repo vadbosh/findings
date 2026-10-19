@@ -119,7 +119,10 @@ Codex the same command is the skill `$findings`: `$findings project`,
 finished reply and records its section in the ledger. A deferring phrase in the
 body — "separate task", "also noticed", "отдельная задача", "попутно нашёл" —
 outside code, quotes and the proposals section, or this section not being last,
-continues the turn once with an instruction to append the section.
+continues the turn once with an instruction to append the section. So does a
+section whose items carry no ledger ids, or whose ready answer names ids that
+are not its own: the hook has recorded the items, and the instruction lists
+the id each one got, to print the section again with them.
 `bin/findings-hook` (UserPromptSubmit) tells the model how many findings are
 open in the project, which are urgent, and the id of its own session; it is
 silent when neither the project nor the session has an open finding.

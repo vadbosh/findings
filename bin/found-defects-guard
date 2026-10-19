@@ -200,7 +200,8 @@ def ledger_record(reply, payload):
     FINDINGS_RECORD=off is honoured inside findings.record_items().
 
     Returns the notice to show the user — chat number, id and path of each
-    item — when the reply did not carry the ids itself; "" otherwise."""
+    item — when the reply did not carry the ids itself, "" otherwise; and the
+    recorded items."""
     try:
         sys.dont_write_bytecode = True
         import importlib.util
@@ -212,9 +213,54 @@ def ledger_record(reply, payload):
         loader.exec_module(findings)
         items = findings.record_items(reply, payload.get("cwd") or os.getcwd(),
                                       payload.get("session_id"))
-        return findings.recorded_notice(items), [r["id"] for r in items]
+        return findings.recorded_notice(items), items
     except Exception:
         return "", []
+
+
+ANSWER_ID = re.compile(r"\bF(\d+)(?:\s*[-–]\s*F?(\d+))?")
+
+
+def answer_ids(reply):
+    """The F numbers the section's ready-answer line names, ranges expanded:
+    the line that holds `/findings` or `$findings` and a verb."""
+    sections = list(SECTION.finditer(reply))
+    if not sections:
+        return set()
+    body = reply[sections[-1].end():]
+    nxt = HEADING.search(body)
+    if nxt:
+        body = body[:nxt.start()]
+    out = set()
+    for line in body.splitlines():
+        if not re.search(r"[/$]findings\s+(fix|park|skip|done|open)\b", line):
+            continue
+        for m in ANSWER_ID.finditer(line):
+            a = int(m.group(1))
+            b = int(m.group(2)) if m.group(2) else a
+            if b - a < 1000:
+                out.update(range(a, b + 1))
+    return out
+
+
+def id_problem(text, items):
+    """The ids the chat shows must be the ledger's. A model that skipped
+    `findings reserve` printed bare items and a ready answer of its own,
+    `park F1-F3`, naming three unrelated findings (2026-10-19). The hook
+    records the items anyway; this asks for the section again with the ids
+    they got, so the chat itself names them."""
+    if not items:
+        return ""
+    bare = [r for r in items if r["want"] != r["id"]]
+    foreign = sorted(answer_ids(text) - {r["id"] for r in items})
+    if not bare and not foreign:
+        return ""
+    got = ", ".join(f"{r['n']} → F{r['id']} ({r['project']})" for r in items)
+    why = ("items without their ledger ids" if bare else
+           f"the ready answer names {', '.join(f'F{i}' for i in foreign)}, not this section's ids")
+    return (f"found-defects section: {why}. Recorded: {got}.\n"
+            "Output only the found-defects section again: each item opens with its id "
+            "(`1. F<id>: [tag] …`), grouped by the project shown, ready answer built from these ids.")
 
 
 HELP = {
@@ -276,13 +322,16 @@ def main():
     # off: it is part of recording, not of the check.
     out = {}
     parts = []
+    ids_wrong = ""
     for text in turn_texts(payload, reply):
         if not SECTION.search(text):
             continue
-        notice, ids = ledger_record(text, payload)
+        notice, items = ledger_record(text, payload)
+        ids = [r["id"] for r in items]
         for p in (notice, help_notice(text, ids, command_name(payload))):
             if p and p not in parts:
                 parts.append(p)
+        ids_wrong = id_problem(text, items) or ids_wrong
     if parts:
         out["systemMessage"] = "\n".join(parts)
     if (os.environ.get("FOUND_DEFECTS_GUARD", "").lower() != "off"
@@ -291,6 +340,9 @@ def main():
         if problems:
             log(problems, payload)
             out.update(decision="block", reason=reason(problems, section_items(reply)))
+        elif ids_wrong:
+            log([ids_wrong.splitlines()[0]], payload)
+            out.update(decision="block", reason=ids_wrong)
     if out:
         sys.stdout.write(json.dumps(out, ensure_ascii=False))
 

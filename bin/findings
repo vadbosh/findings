@@ -407,8 +407,9 @@ def record(reply, cwd, session=None):
 def recorded_notice(items):
     """The line the Stop hook shows when the chat cannot be trusted to carry
     the ids: some item came without one, or got a different one, or was
-    already in the ledger. Empty when every item carries the id it got."""
-    if all(r["new"] and r["want"] == r["id"] for r in items):
+    already in the ledger under another id. Empty when every item carries the
+    id it got — a section printed again with its ids included."""
+    if all(r["want"] == r["id"] for r in items):
         return ""
     lines = ["findings recorded:"]
     for r in items:

@@ -58,8 +58,9 @@ expect block "попутно заметил"         "Сделал X. Попут
 expect block "en: also noticed"        "Done. I also noticed the cache key is wrong."
 expect block "en: out of scope"        "Done. The flaky test is out of scope here."
 expect block "en: separate task"       "Done. Renaming the module is a separate task."
-expect pass  "defect in final section" "Сделал X.${NL}${NL}## Предлагаю${NL}1. Запушить.${NL}${NL}## Найдено попутно${NL}1. [не связано] \`lib/x.py:41\` — отдельная задача — проверено. Исправить?"
-expect pass  "en final section"        "Done.${NL}${NL}## Found along the way${NL}1. [unrelated] \`a.py\` — out of scope bug — unverified. Fix?"
+# Not recorded: these test the phrase check, and bare items are blocked for their ids.
+FINDINGS_RECORD=off expect pass  "defect in final section" "Сделал X.${NL}${NL}## Предлагаю${NL}1. Запушить.${NL}${NL}## Найдено попутно${NL}1. [не связано] \`lib/x.py:41\` — отдельная задача — проверено. Исправить?"
+FINDINGS_RECORD=off expect pass  "en final section"        "Done.${NL}${NL}## Found along the way${NL}1. [unrelated] \`a.py\` — out of scope bug — unverified. Fix?"
 expect block "section not last"        "Сделал X.${NL}${NL}## Найдено попутно${NL}1. [связано] a — b — c. Исправить?${NL}${NL}## Предлагаю${NL}1. Запушить."
 expect block "phrase before section"   "Ещё нашёл баг в y.${NL}${NL}## Найдено попутно${NL}1. [связано] x — z — c. Исправить?"
 expect pass  "phrase in code block"    "Пример:${NL}\`\`\`${NL}Отдельная задача, если нужна.${NL}\`\`\`${NL}Готово."
@@ -117,14 +118,30 @@ if printf '%s' "$msg" | grep -qE '^  1\. F[0-9]+  g1\.txt:1 — первая г�
    && [ "$(printf '%s' "$msg" | grep -cE '^  [0-9]+\. F')" = 2 ]; then pass=$((pass + 1)); [ "$QUIET" -eq 1 ] || echo "  ok    project labels are skipped, numbering runs through the groups"
 else fail=$((fail + 1)); echo "  FAIL  grouped section: $msg"; fi
 
-# The mini-help: shown by the hook when the section does not carry it.
-ids="$(FINDINGS_DIR="$FINDINGS_DIR" "$HERE/../bin/findings" reserve 2 --session t)"
-h1="${ids%% *}"; h2="${ids##* }"
-msg="$(notice "Готово.${NL}${NL}## Найдено попутно${NL}1. $h1: [связано] \`/tmp/h1.txt:1\` — раз — x. Исправить?${NL}2. $h2: [связано] \`/tmp/h2.txt:2\` — два — x. Исправить?")"
 check_msg() { # what, needle, msg
     if printf '%s' "$3" | grep -qF -- "$2"; then pass=$((pass + 1)); [ "$QUIET" -eq 1 ] || echo "  ok    $1"
     else fail=$((fail + 1)); echo "  FAIL  $1: $3"; fi
 }
+
+# The chat must show the ledger's ids: bare items, or a ready answer naming
+# other ids, continue the turn once with the ids the items got.
+out="$(run "Готово.${NL}${NL}## Найдено попутно${NL}1. [связано] \`/tmp/b1.txt:1\` — без номера — x. Исправить?${NL}${NL}Решение одной строкой: /findings park F1-F3")"
+check_msg "bare items: block" "block" "$(printf '%s' "$out" | jq -r '.decision // ""')"
+check_msg "bare items: reason maps chat number to id" "1 → F" "$(printf '%s' "$out" | jq -r '.reason // ""')"
+out="$(run "Готово.${NL}${NL}## Найдено попутно${NL}1. [связано] \`/tmp/b2.txt:1\` — без номера — x. Исправить?" true)"
+if ! printf '%s' "$out" | jq -e 'has("decision")' >/dev/null 2>&1; then pass=$((pass + 1)); [ "$QUIET" -eq 1 ] || echo "  ok    bare items: never a second block"
+else fail=$((fail + 1)); echo "  FAIL  bare items blocked twice: $out"; fi
+f1="$(FINDINGS_DIR="$FINDINGS_DIR" "$HERE/../bin/findings" reserve --session t)"
+out="$(run "Готово.${NL}${NL}## Найдено попутно${NL}1. $f1: [связано] \`/tmp/b3.txt:1\` — с номером — x. Исправить?${NL}${NL}Решение одной строкой: /findings park F1-F3")"
+check_msg "foreign ids in the ready answer: reason" "the ready answer names F1, F2, F3" "$(printf '%s' "$out" | jq -r '.reason // ""')"
+out="$(run "Готово.${NL}${NL}## Найдено попутно${NL}1. $f1: [связано] \`/tmp/b3.txt:1\` — с номером — x. Исправить?${NL}${NL}Решение одной строкой: /findings park $f1${NL}fix — исправить · park — отложить · skip — отклонить")"
+if [ -z "$out" ]; then pass=$((pass + 1)); [ "$QUIET" -eq 1 ] || echo "  ok    a section printed again with its ids: no block, no notice"
+else fail=$((fail + 1)); echo "  FAIL  reprint with ids: $out"; fi
+
+# The mini-help: shown by the hook when the section does not carry it.
+ids="$(FINDINGS_DIR="$FINDINGS_DIR" "$HERE/../bin/findings" reserve 2 --session t)"
+h1="${ids%% *}"; h2="${ids##* }"
+msg="$(notice "Готово.${NL}${NL}## Найдено попутно${NL}1. $h1: [связано] \`/tmp/h1.txt:1\` — раз — x. Исправить?${NL}2. $h2: [связано] \`/tmp/h2.txt:2\` — два — x. Исправить?")"
 check_msg "no mini-help in the section: the hook shows it" "fix — исправить · park — отложить" "$msg"
 check_msg "the ready answer carries the section's ids" "/findings fix|park|skip|done|open $h1,$h2" "$msg"
 msg="$(notice "Готово.${NL}${NL}## Найдено попутно${NL}  $h1 [related] \`/tmp/h1.txt:1\` — раз  — 2026-10-04")"
