@@ -164,6 +164,13 @@ git-репозитория получает метку репозитория, �
 если и этот каталог вне git, меткой становится он сам. `/findings all` показывает
 весь файл, сгруппированный по меткам.
 
+При чтении путь проходится в обратную сторону. В git-репозитории
+`findings list` показывает находки с меткой этого репозитория. Вне git команда
+поднимается от текущего каталога вверх и останавливается на первом каталоге,
+который есть в журнале как метка. Поэтому `findings list` в `/srv/notes/doc`
+покажет находки с меткой `/srv/notes`. Чтобы посмотреть другой проект, укажите
+его путь: `findings list /srv/infra`.
+
 ## Установка
 
 ```bash
@@ -197,7 +204,8 @@ cd findings
 findings list [--scope session|project|all] [--session ID] [--status open,park,skip,done|any] [-p PATH]
 findings count [-p PATH]  # one line, for hooks and prompts
 findings set park 4-9     # or simply: findings park 4-9
-findings sessions [--ide claude|codex|opencode] [--scope all|project] [--status open|any]
+findings sessions [PATH] [--ide claude|codex|opencode] [--scope all|project] [--status open|any]
+findings list /srv/app   # the project of /srv/app; also --scope /srv/app
 findings brief F12 F14    # the prompt for a fresh session
 findings --help           # every command with an example; also -h and help
 

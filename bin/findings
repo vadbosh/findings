@@ -116,6 +116,50 @@ def project_of(cwd):
     return toplevel(cwd) or os.path.realpath(cwd)
 
 
+def reading_project(path):
+    """The project to list for a path. Outside git every directory is a project
+    of its own, so `findings list` in /srv/notes/doc showed nothing of what was
+    filed under /srv/notes (F396). There the nearest directory, the path itself
+    or one above it, that the ledger files findings under is the project."""
+    top = toplevel(path)
+    if top:
+        return top
+    here = os.path.realpath(os.path.expanduser(path))
+    known = set(projects())
+    d = here
+    while True:
+        if d in known:
+            return d
+        up = os.path.dirname(d)
+        if up == d:
+            return here
+        d = up
+
+
+SCOPES = ("session", "project", "all")
+
+
+def path_scope(args):
+    """`--scope /srv/app` and `--scope=/srv/app` read as `-p /srv/app --scope
+    project`: a path where the scope word goes names the project. Only a value
+    that looks like a path; a mistyped word still gets argparse's error."""
+    def pathlike(v):
+        return v not in SCOPES and (any(c in v for c in "/\\") or v[:1] in "~." or os.path.exists(v))
+    out, i = [], 0
+    while i < len(args):
+        w = args[i]
+        if w == "--scope" and i + 1 < len(args) and pathlike(args[i + 1]):
+            out += ["-p", args[i + 1], "--scope", "project"]
+            i += 2
+            continue
+        if w.startswith("--scope=") and pathlike(w[8:]):
+            out += ["-p", w[8:], "--scope", "project"]
+        else:
+            out.append(w)
+        i += 1
+    return out
+
+
 def route(where, cwd):
     """The project a finding belongs to: the repository its path points at."""
     # /abs, ~/rel, or a Windows drive path C:\x or C:/x; ":" ends the path
@@ -861,12 +905,20 @@ def brief(ids):
 HELP = """\
 Usage: findings [list]                             the findings of this session, or of the project
        findings done|skip|park|open ID...          decide, from any terminal
-       findings sessions [--ide IDE] [--scope all|project] [--status S]
+       findings sessions [PATH] [--ide IDE] [--scope all|project] [--status S]
        findings brief ID...
-       findings list --scope project|all [--status S] [-p PATH]
+       findings list [PATH] [--scope project|all] [--status S]
 
 An id is F12, 12, F4-F9 or 3,5. Ids are global: F12 is the same finding in whatever
 directory you run the command.
+
+A project is the git repository a path is in. Outside git it is the nearest
+directory, the path itself or one above it, that has findings filed under it.
+Every finding belongs to one project: the one its path points at.
+
+  findings list /srv/app             the findings of the project of /srv/app
+  findings list --scope /srv/app     the same; so is -p /srv/app --scope project
+  findings sessions /srv/app         the sessions with open findings in that project
 
 Decide in a terminal. Only a fix needs the assistant; the rest is one command:
 
@@ -943,9 +995,13 @@ def main(argv):
     for name in ("list", "count", "set", "add", "record", "compact", "reserve", "sessions", "brief"):
         s = sub.add_parser(name)
         s.add_argument("-p", "--project", default=None, help="a path inside the project (default: cwd)")
+        if name in ("list", "sessions"):
+            s.add_argument("path", nargs="?", default=None,
+                           help="list the project of this path (same as -p PATH --scope project)")
         if name == "sessions":
             s.add_argument("--ide", choices=tuple(RESUME), default=None, help="one IDE only")
-            s.add_argument("--scope", choices=("project", "all"), default="all", help="default: all")
+            s.add_argument("--scope", choices=("project", "all"), default=None,
+                           help="default: all, or project with a PATH")
             s.add_argument("--status", default="open", help="comma list, or 'any' (default: open)")
         if name == "brief":
             s.add_argument("ids", nargs="+")
@@ -973,11 +1029,22 @@ def main(argv):
     # `findings skip F80 fix F85` — several decisions in one line.
     if argv and argv[0].lower() in VERBS:
         return decide(argv)
+    if argv and argv[0] in ("list", "sessions"):
+        argv = argv[:1] + path_scope(argv[1:])
     a = ap.parse_args(argv)
     if not a.cmd:
         a = ap.parse_args(["list"] + argv)
+    if getattr(a, "path", None):
+        a.project = a.path
+        if a.scope is None:
+            a.scope = "project"
+    if a.cmd == "sessions" and a.scope is None:
+        a.scope = "all"
 
-    project = project_of(a.project or os.getcwd())
+    # Reading walks up to a project the ledger knows; writing (add) files a
+    # finding under the directory itself, as the Stop hook does.
+    resolve = reading_project if a.cmd in ("list", "count", "sessions") else project_of
+    project = resolve(a.project or os.getcwd())
 
     if a.cmd == "list" and a.archive:
         targets = projects(archived=True) if (a.all or a.scope == "all") else [project]

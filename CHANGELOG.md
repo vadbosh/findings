@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.10.5 — 2026-10-19
+
+- **A path names the project to list** (F396). `findings list /srv/app` and
+  `findings sessions /srv/app` list the project of that path, and so does
+  `--scope /srv/app` or `--scope=/srv/app`. Both used to fail:
+  `unrecognized arguments` and `invalid choice`. A mistyped scope word still
+  gets argparse's error.
+- **Outside git, listing walks up to the project.** Every directory outside
+  git was a project of its own, so `findings list` in a subdirectory showed
+  `nothing open` while its parent had open findings. `list`, `count` and
+  `sessions` now stop at the nearest directory, the path itself or one above,
+  that the ledger has findings filed under. Recording is unchanged.
+- `findings --help` and both READMEs say what a project is.
+
 ## 0.10.4 — 2026-10-19
 
 - **`findings sessions` writes its lines for PowerShell on Windows** (F395).

@@ -164,6 +164,12 @@ next time you work in `/srv/infra`, the last line of `/findings` counts it and
 gets the repository of the session's directory; a session directory outside
 git is its own label. `/findings all` shows the whole file, grouped by label.
 
+Listing goes the other way. In a git repository, `findings list` shows the
+findings labelled with that repository. Outside git it walks up from the current
+directory and stops at the first directory that is a label in the ledger. So
+`findings list` in `/srv/notes/doc` shows what is labelled `/srv/notes`. To
+list another project, name its path: `findings list /srv/infra`.
+
 ## Install
 
 ```bash
@@ -195,7 +201,8 @@ Needs python 3.8+ and, for filing by repository, git. No packages.
 findings list [--scope session|project|all] [--session ID] [--status open,park,skip,done|any] [-p PATH]
 findings count [-p PATH]  # one line, for hooks and prompts
 findings set park 4-9     # or simply: findings park 4-9
-findings sessions [--ide claude|codex|opencode] [--scope all|project] [--status open|any]
+findings sessions [PATH] [--ide claude|codex|opencode] [--scope all|project] [--status open|any]
+findings list /srv/app   # the project of /srv/app; also --scope /srv/app
 findings brief F12 F14    # the prompt for a fresh session
 findings --help           # every command with an example; also -h and help
 

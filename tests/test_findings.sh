@@ -297,6 +297,19 @@ check "opencode: OPENCODE_DB names the database"   "opencode --session $SO" \
 mkdir -p "$TMP/xdg/opencode" && cp "$TMP/oc/opencode.db" "$TMP/xdg/opencode/"
 check "opencode: XDG_DATA_HOME is honoured"        "opencode --session $SO" \
     "$(OPENCODE_DATA_DIR='' XDG_DATA_HOME="$TMP/xdg" f sessions)"
+# A path where a project goes: positional, or in --scope.
+check "list PATH: the project of that path"        "findings: $B" "$(cd "$A" && f list "$B")"
+check "list --scope PATH: the same"                "findings: $B" "$(cd "$A" && f list --scope "$B/sub")"
+check "list --scope=PATH: the same"                "findings: $B" "$(cd "$A" && f list --scope="$B")"
+check "sessions PATH: that project only"           "codex  $SX" "$(cd "$A" && f sessions "$B")"
+absent "sessions PATH: other projects left out"    "opencode  $SO" "$(cd "$A" && f sessions "$B")"
+check "a mistyped scope word is still refused"     "invalid choice: 'projet'" "$(f list --scope projet)"
+# Outside git, a subdirectory lists the findings of the nearest parent filed in the ledger.
+N="$TMP/notes"; mkdir -p "$N/doc/deep"
+f add --where "$N/todo.txt" --text "a note outside git" --cwd "$N" >/dev/null
+check "no git: a subdirectory finds the parent"    "findings: $N" "$(cd "$N/doc/deep" && f list)"
+check "no git: count finds it too"                 "1 open, 0 urgent, 0 parked — $N" "$(cd "$N/doc" && f count)"
+absent "no git: count is not of the subdirectory"  "— $N/doc" "$(cd "$N/doc" && f count)"
 ESC=$'\033'
 absent "colour: none in a pipe"                    "${ESC}[" "$(f sessions)"
 out="$(FINDINGS_COLOR=always f sessions)"
