@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.10.1 — 2026-10-19
+
+- **`findings --help` shows examples, the decisions first.** It was the bare
+  argparse list of subcommand names, and `done`, `skip`, `park` and `open` were
+  not in it: they are read before argparse. The help now groups the commands
+  like `claude-sessions --help` does, one example per line with what it does:
+  decisions in a terminal, `sessions` and `brief`, lists, and the commands the
+  hooks use. `findings -h` and `findings help` print the same.
+- **`findings sessions` ends with how to decide in the terminal:**
+  `findings done|skip|park F<id>`. Only a fix needs the IDE, through the
+  `resume` or `fresh` line.
+
 ## 0.10.0 — 2026-10-19
 
 - **`findings sessions`: the open findings by the session that found them.**

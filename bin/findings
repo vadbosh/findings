@@ -792,7 +792,68 @@ def brief(ids):
     return 0
 
 
+HELP = """\
+Usage: findings [list]                             the findings of this session, or of the project
+       findings done|skip|park|open ID...          decide, from any terminal
+       findings sessions [--ide IDE] [--scope all|project] [--status S]
+       findings brief ID...
+       findings list --scope project|all [--status S] [-p PATH]
+
+An id is F12, 12, F4-F9 or 3,5. Ids are global: F12 is the same finding in whatever
+directory you run the command.
+
+Decide in a terminal. Only a fix needs the assistant; the rest is one command:
+
+  findings done F12                MARKS F12 fixed, once you have seen the fix work
+  findings skip F12                DECLINES F12: not a defect, or not worth fixing
+  findings park F12-F15            DEFERS them: kept in the ledger, no longer shown in the chat
+  findings open F12                REOPENS F12
+  findings skip F12 done F14       several decisions in one line, also with " · " between them
+
+  A line with one unknown id changes nothing.
+
+Which session found what:
+
+  findings sessions                  LISTS the open findings by the session that found them,
+                                     all three IDEs, the newest session first
+  findings sessions --ide codex      only Codex sessions (also: claude, opencode)
+  findings sessions --scope project  only the findings of this project (-p PATH: another one)
+  findings sessions --status any     also the parked, skipped and done ones
+
+  Under each session:
+    resume:  goes back into that session
+    fresh:   starts a new session in the project of the finding, with the brief as the prompt
+
+  findings brief F12 F14             PRINTS that prompt: each finding, where it is, the session
+                                     it came from, and what to do
+
+Lists:
+
+  findings list                      the findings of this session; outside an assistant there
+                                     is no session id, so the whole project
+  findings list --scope project      every finding of this project (-p PATH: another one)
+  findings list --scope all          every project
+  findings list --status any         also the skipped and done ones
+  findings list --archive            done findings that compaction moved out
+  findings count                     one line: open, urgent, parked
+
+Used by the hooks and the assistant, rarely by hand:
+
+  findings reserve N                 ids for the next found-along-the-way section
+  findings record --cwd DIR          records the section of a reply read from stdin
+  findings add --where W --text T [--tag related|unrelated|urgent]
+  findings compact                   one record per finding; old done ones go to the archive
+
+Ledger: {ledger}
+"""
+
+
 def main(argv):
+    # argparse would list subcommand names only, and the decisions — the part
+    # a person at a terminal needs — are not subcommands at all.
+    if argv and argv[0] in ("-h", "--help", "help"):
+        print(HELP.format(ledger=ledger()), end="")
+        return 0
     ap = argparse.ArgumentParser(prog="findings", description=__doc__.split("\n\n")[0])
     sub = ap.add_subparsers(dest="cmd")
     for name in ("list", "count", "set", "add", "record", "compact", "reserve", "sessions", "brief"):
@@ -870,7 +931,11 @@ def main(argv):
         statuses = STATUSES if a.status == "any" else tuple(a.status.split(","))
         items = [it for it in load(None if a.scope == "all" else project).values()
                  if it["status"] in statuses]
-        print(sessions(items, a.ide) or "findings: nothing " + "/".join(statuses))
+        out = sessions(items, a.ide)
+        print(out or "findings: nothing " + "/".join(statuses))
+        if out:
+            print("\nDecide here: findings done|skip|park F<id>. "
+                  "A fix needs the IDE: the resume or fresh line.")
     elif a.cmd == "brief":
         try:
             ids = parse_ids(a.ids)
