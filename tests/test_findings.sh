@@ -347,8 +347,18 @@ check "list --long: the session and cwd of a row"  "claude session $SC · cwd $A
 absent "list in a pipe, as /findings reads it: rows only" " · cwd " "$(f list --scope all)"
 if command -v script >/dev/null 2>&1 && script -qc true /dev/null >/dev/null 2>&1; then
     check "list in a terminal: the second line too" "codex session $SX · cwd $B" \
-        "$(script -qc "'$BIN/findings' list --scope all" /dev/null)"
+        "$(NO_COLOR=1 script -qc "'$BIN/findings' list --scope all" /dev/null)"
 fi
+E=$'\033'
+out="$(FINDINGS_COLOR=always f list --scope all --long)"
+check "colour: the IDE and session words cyan"     "${E}[36mcodex session${E}[0m" "$out"
+check "colour: the session id bright green"        "${E}[92m$SX${E}[0m" "$out"
+check "colour: the cwd bright yellow"              "${E}[93mcwd $B${E}[0m" "$out"
+out="$(FINDINGS_COLOR=always f -h)"
+check "colour: help headings bold yellow"          "${E}[1;33mCOMMANDS${E}[0m" "$out"
+check "colour: help commands bright cyan"          "${E}[96mfindings list" "$out"
+check "colour: help notes dim"                     "${E}[90m  # open findings of this project" "$out"
+absent "colour: help in a pipe is plain"           "${E}[" "$(f -h)"
 check "no command: --session ID is list"           "session claude finding" "$(f --session "$SC")"
 check "no command: a path is list"                 "findings: $B" "$(cd "$A" && f "$B")"
 check "no command: --scope all is list"            "findings: $B" "$(f --scope all)"

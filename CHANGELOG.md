@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.12.3 — 2026-11-03
+
+- **Where a finding was found is coloured too.** Under a row of
+  `findings list --long`, and in the head of each session of `findings sessions`,
+  the IDE (`claude session`) is cyan, the session id bright green and the
+  directory (`cwd …`) bright yellow.
+- **The help is coloured in a terminal**: headings bold yellow, commands bright
+  cyan, `# notes` dim. In a pipe it stays plain text, as every listing does.
+- Both READMEs list every colour in one table.
+
 ## 0.12.2 — 2026-11-03
 
 - **`findings -h` says that every command has its own help**, how to open it

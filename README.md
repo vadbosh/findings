@@ -156,9 +156,18 @@ findings sessions --ide opencode     # opencode sessions only
 findings sessions --scope project    # the findings of this project only
 ```
 
-In a terminal, `sessions` and `list` use the same colours everywhere: `last …`
-is bright green, `[related]` cyan, `[unrelated]` yellow, `[urgent]` bold bright
-red. Output read by an assistant, a hook or `$(findings brief …)` has no colour.
+In a terminal, `sessions`, `list` and the help use the same colours everywhere:
+
+| Colour | What |
+|---|---|
+| bright green | `last …`, a session id |
+| cyan | `[related]`, the IDE (`claude session`) |
+| bright yellow | `cwd …`, the directory of a session |
+| yellow | `[unrelated]` |
+| bold bright red | `[urgent]` |
+| bold yellow, bright cyan, dim | in the help: headings, commands, `# notes` |
+
+Output read by an assistant, a hook or `$(findings brief …)` has no colour.
 `NO_COLOR=1` turns colour off; `FINDINGS_COLOR=always` keeps it in a pipe, for
 `less -R`.
 

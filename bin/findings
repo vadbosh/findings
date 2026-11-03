@@ -492,7 +492,8 @@ def now():
 # assistant, a hook or `$(findings brief …)` reads the output as text, and an
 # escape code there is noise in a model's context. NO_COLOR turns it off,
 # FINDINGS_COLOR=always on (for `less -R`), FINDINGS_COLOR=never off.
-COLORS = {"related": "36", "unrelated": "33", "urgent": "1;91", "last": "92"}
+COLORS = {"related": "36", "unrelated": "33", "urgent": "1;91", "last": "92",
+          "ide": "36", "sid": "92", "cwd": "93", "head": "1;33", "cmd": "96", "note": "90"}
 _COLOR = None
 
 
@@ -554,8 +555,9 @@ def where_found(it):
     """`claude session ID · cwd DIR`: where a finding was found. The IDE is
     told by the shape of the id — reading transcripts would slow a listing."""
     sid = it.get("session")
-    who = f"{ide_of(sid) or '?'} session {sid}" if sid else "no session"
-    return f"{who} · cwd {it.get('cwd') or '?'}"
+    who = (paint(f"{ide_of(sid) or '?'} session", "ide") + " " + paint(sid, "sid")
+           if sid else "no session")
+    return f"{who} · " + paint(f"cwd {it.get('cwd') or '?'}", "cwd")
 
 
 def digest(project, statuses=("open", "park"), session=None, archived=False, split=None,
@@ -932,10 +934,12 @@ def sessions(items, ide=None):
     for _, sid, info, kind, group in rows:
         if info:
             when = time.strftime("%Y-%m-%d %H:%M", time.localtime(info["last"]))
-            head = f"{kind}  {sid}  {info['cwd'] or '?'}  " + paint(f"last {when} ({ago(info['last'])})", "last")
+            # The same colours as under a row of `findings list --long`.
+            head = (f"{paint(kind, 'ide')}  {paint(sid, 'sid')}  {paint(info['cwd'] or '?', 'cwd')}  "
+                    + paint(f"last {when} ({ago(info['last'])})", "last"))
         elif sid:
-            head = (f"{kind or '?'}  {sid}  {group[0].get('cwd') or '?'}  "
-                    "— transcript gone, no resume")
+            head = (f"{paint(kind or '?', 'ide')}  {paint(sid, 'sid')}  "
+                    f"{paint(group[0].get('cwd') or '?', 'cwd')}  — transcript gone, no resume")
         else:
             head = f"?  (no session id)  {group[0].get('cwd') or '?'}"
         block = [head]
@@ -1110,7 +1114,8 @@ project — what a finding is filed under
 colour — in a terminal only
     NO_COLOR=1 findings sessions                         # no colour
     FINDINGS_COLOR=always findings sessions | less -R    # colour in a pipe too
-  last … is bright green, [related] cyan, [unrelated] yellow, [urgent] bold red.""",
+  last … and a session id bright green; [related] and the IDE cyan; cwd … bright yellow;
+  [unrelated] yellow; [urgent] bold red. In the help: headings, commands, # notes.""",
 
     "completion": """\
 completion — Tab in bash
@@ -1129,6 +1134,31 @@ hooks — what the hooks and the assistant run
 
 HELP_ALIASES = {"skip": "done", "park": "done", "open": "done", "color": "colour", "set": "hooks",
                 "reserve": "hooks", "record": "hooks", "add": "hooks", "compact": "hooks"}
+
+
+def help_paint(text):
+    """The help, coloured for a terminal: headings bold yellow, commands bright
+    cyan, `# notes` dim. Plain text anywhere else, as every listing is."""
+    if not color_on():
+        return text
+    out = []
+    for line in text.splitlines(keepends=True):
+        body, nl = line.rstrip("\n"), line[len(line.rstrip("\n")):]
+        if body and not body[0].isspace() and (body.isupper() or " — " in body[:60]):
+            out.append(paint(body, "head") + nl)
+            continue
+        cmd, sep, note = body.partition("  # ")
+        stripped = cmd.lstrip()
+        if stripped.startswith(("findings ", "$ ", "claude ", "codex ", "opencode ",
+                                "NO_COLOR", "FINDINGS_COLOR", "source ", "resume:", "fresh:")):
+            indent = cmd[:len(cmd) - len(stripped)]
+            line_out = indent + paint(stripped, "cmd")
+            if sep:
+                line_out += paint("  # " + note, "note")
+            out.append(line_out + nl)
+        else:
+            out.append(line)
+    return "".join(out)
 
 
 def help_text(topic=None):
@@ -1193,12 +1223,12 @@ def main(argv):
             print(f"findings: no help for {topic!r} — topics: "
                   + ", ".join(list(HELP_TOPICS) + list(HELP_ALIASES)), file=sys.stderr)
             return 2
-        print(text, end="")
+        print(help_paint(text), end="")
         return 0
     # `findings sessions -h` is the same page as `findings help sessions`:
     # the topic has the examples, argparse's own usage line has none.
     if len(argv) > 1 and help_text(argv[0]) and any(w in ("-h", "--help") for w in argv[1:]):
-        print(help_text(argv[0]), end="")
+        print(help_paint(help_text(argv[0])), end="")
         return 0
     if argv and argv[0] == "__complete":
         return complete(argv[1:])
