@@ -924,8 +924,8 @@ def sessions(items, ide=None):
         if info and info.get("title"):
             block.append(f"  title:  {info['title']}")
         for it in group:
-            mark = "" if it["status"] == "open" else f" ({it['status']})"
-            block.append(f"  {label(it, color=True)}{mark}  — {it['ts'][:10]}")
+            # Every row says its status: "open" left unsaid read as no status at all.
+            block.append(f"  {label(it, color=True)} ({it['status']})  — {it['ts'][:10]}")
         if kind:
             resume = RESUME[kind][0]
             if info:
@@ -1046,6 +1046,9 @@ Which session found what:
   findings sessions --ide opencode   only opencode sessions
   findings sessions --scope project  only the findings of this project (-p PATH: another one)
   findings sessions --status any     also the parked, skipped and done ones
+
+  The first line says what is listed: the statuses, the IDE, the projects.
+  Every finding row ends with its status: (open), (park), (skip) or (done).
 
   Under each session, two kinds of line:
     resume:  goes back into that session
@@ -1231,6 +1234,15 @@ def main(argv):
         items = [it for it in load(None if a.scope == "all" else project).values()
                  if it["status"] in statuses]
         out = sessions(items, a.ide)
+        if out:
+            # What the list is, before the list: which statuses, which IDE,
+            # which projects, and how to see the rest.
+            ide = {"claude": "Claude Code", "codex": "Codex", "opencode": "opencode"}.get(a.ide, "all IDEs")
+            where = project if a.scope == "project" else "every project"
+            more = ("" if a.status == "any" else
+                    " — other statuses: --status open,park | any")
+            print(f"findings by session — status {'/'.join(statuses)}, {ide}, {where}, "
+                  f"newest session first{more}\n")
         print(out or "findings: nothing " + "/".join(statuses))
         if out:
             print("\nDecide here: findings done|skip|park F<id>. "

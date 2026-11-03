@@ -101,13 +101,18 @@ Run `findings sessions` in a terminal, not in the assistant. In a long session
 the assistant reads every line of its output again on each later call. The
 command groups the open findings by the session that found them, newest first.
 The ledger does not keep the IDE, the directory of the session, its title or its
-last activity. The command reads them from the IDE's own files.
+last activity. The command reads them from the IDE's own files. The first line
+of the output says what is listed, and every finding row ends with its status:
+`(open)`, `(park)`, `(skip)` or `(done)`. By default only open ones are listed;
+`--status any` lists all.
 
 ```
 $ findings sessions
+findings by session — status open, all IDEs, every project, newest session first — other statuses: --status open,park | any
+
 claude  3f2a9c1e-5b7d-4e2a-9c1f-8a6b2d4e0f13  /srv/app  last 2026-10-19 10:31 (3m ago)
   title:  Migration rollback
-  F12 [related] `/srv/app/db/migrate.py:88` — the rollback skips the index it created …
+  F12 [related] `/srv/app/db/migrate.py:88` — the rollback skips the index it created … (open)  — 2026-10-19
   resume: cd /srv/app && claude --resume 3f2a9c1e-5b7d-4e2a-9c1f-8a6b2d4e0f13
   fresh:  cd /srv/app && claude -- "$(findings brief F12)"
 ```

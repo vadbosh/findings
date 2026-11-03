@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.11.3 — 2026-11-03
+
+- **`findings sessions` says what it lists.** The rows of open findings carried
+  no status, because only a status other than open was marked, and the list read
+  as findings with no status at all. The output now opens with a line naming the
+  statuses, the IDE and the projects, for example
+  `findings by session — status open, Codex, every project, newest session
+  first — other statuses: --status open,park | any`, and every row ends with its
+  status: `(open)`, `(park)`, `(skip)` or `(done)`. This holds for every
+  `--ide`.
+
 ## 0.11.2 — 2026-11-03
 
 - **The `fresh` line puts `--` before the prompt.** A shell function such as

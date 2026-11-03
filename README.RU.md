@@ -101,13 +101,18 @@ ID сессии в Claude Code берётся из `$CLAUDE_CODE_SESSION_ID`. Co
 ассистент заново читает каждую строку этого вывода при каждом следующем вызове.
 Команда группирует открытые находки по сессиям, которые их нашли, свежие сверху.
 IDE, каталог сессии, её заголовок и время последней активности журнал не хранит,
-их команда берёт из файлов самой IDE.
+их команда берёт из файлов самой IDE. Первая строка вывода говорит, что именно
+показано, а каждая строка находки заканчивается её статусом: `(open)`,
+`(park)`, `(skip)` или `(done)`. По умолчанию показываются только открытые,
+`--status any` показывает все.
 
 ```
 $ findings sessions
+findings by session — status open, all IDEs, every project, newest session first — other statuses: --status open,park | any
+
 claude  3f2a9c1e-5b7d-4e2a-9c1f-8a6b2d4e0f13  /srv/app  last 2026-10-19 10:31 (3m ago)
   title:  Migration rollback
-  F12 [related] `/srv/app/db/migrate.py:88` — откат не удаляет созданный индекс …
+  F12 [related] `/srv/app/db/migrate.py:88` — откат не удаляет созданный индекс … (open)  — 2026-10-19
   resume: cd /srv/app && claude --resume 3f2a9c1e-5b7d-4e2a-9c1f-8a6b2d4e0f13
   fresh:  cd /srv/app && claude -- "$(findings brief F12)"
 ```
