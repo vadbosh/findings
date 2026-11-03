@@ -1058,12 +1058,44 @@ Ledger: {ledger}
 """
 
 
+# What Tab offers after `findings`, people's commands first. The completion
+# script asks for this list instead of keeping its own copy.
+COMMANDS = ("list", "sessions", "brief", "done", "skip", "park", "open", "fix", "count",
+            "help", "set", "reserve", "record", "add", "compact")
+
+
+def complete(args):
+    """`findings __complete WHAT` — words for bin/findings-completion.bash, one
+    per line. Reads the ledger only, never an IDE's transcripts: it runs on
+    every Tab. Prints nothing rather than failing."""
+    what = args[0] if args else ""
+    try:
+        if what == "commands":
+            out = COMMANDS
+        elif what == "ids":
+            want = ("park", "skip", "done") if args[1:] == ["closed"] else ("open", "park")
+            out = [f"F{i}" for i, it in sorted(load().items()) if it["status"] in want]
+        elif what == "sessions":
+            out = dict.fromkeys(it["session"] for it in sorted(load().values(), key=lambda it: it["ts"],
+                                                               reverse=True) if it.get("session"))
+        elif what == "projects":
+            out = projects()
+        else:
+            out = ()
+        print("\n".join(out))
+    except Exception:
+        pass
+    return 0
+
+
 def main(argv):
     # argparse would list subcommand names only, and the decisions — the part
     # a person at a terminal needs — are not subcommands at all.
     if argv and argv[0] in ("-h", "--help", "help"):
         print(HELP.format(ledger=ledger()), end="")
         return 0
+    if argv and argv[0] == "__complete":
+        return complete(argv[1:])
     ap = argparse.ArgumentParser(prog="findings", description=__doc__.split("\n\n")[0])
     sub = ap.add_subparsers(dest="cmd")
     for name in ("list", "count", "set", "add", "record", "compact", "reserve", "sessions", "brief"):

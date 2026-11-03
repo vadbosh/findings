@@ -191,6 +191,14 @@ cd findings
 Нужен python 3.8+, а чтобы раскладывать находки по репозиториям — git. Пакеты не
 нужны.
 
+Автодополнение для bash ставится в
+`~/.local/share/bash-completion/completions/findings`. В новом шелле Tab после
+`findings` предлагает команды. После `done`, `skip`, `park`, `fix` или `brief`
+он предлагает id открытых находок, после `--ide` — три IDE, после `--session` —
+id сессий, после `-p` — каталоги. Если пакета bash-completion нет, добавьте в
+`~/.bashrc` строку `source ~/.local/share/bash-completion/completions/findings`.
+Для PowerShell автодополнения нет.
+
 ## Использование
 
 ```bash

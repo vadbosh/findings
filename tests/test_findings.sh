@@ -299,6 +299,33 @@ check "opencode: OPENCODE_DB names the database"   "opencode --session $SO" \
 mkdir -p "$TMP/xdg/opencode" && cp "$TMP/oc/opencode.db" "$TMP/xdg/opencode/"
 check "opencode: XDG_DATA_HOME is honoured"        "opencode --session $SO" \
     "$(OPENCODE_DATA_DIR='' XDG_DATA_HOME="$TMP/xdg" f sessions)"
+# Tab completion: the words bin/findings-completion.bash offers.
+comp() { # words of the command line, the last one being typed
+    ( PATH="$BIN:$PATH"
+      # shellcheck disable=SC1091  # the file under test, sourced by path
+      source "$BIN/findings-completion.bash"
+      COMP_WORDS=("$@"); COMP_CWORD=$(( $# - 1 ))
+      _findings_complete; printf '%s ' "${COMPREPLY[@]}" )
+}
+out="$(comp findings '')"
+check "complete: the commands, from the CLI"      "list sessions brief done skip park open fix" "$out"
+for c in $("$BIN/findings" __complete commands); do
+    case "$c" in help) continue ;; esac
+    "$BIN/findings" "$c" --help >/dev/null 2>&1 || "$BIN/findings" "$c" F99999 >/dev/null 2>&1
+    rc=$?
+    # argparse exits 0 on --help; a verb with an unknown id exits 2 — both mean the CLI knows it
+    [ "$rc" -eq 0 ] || [ "$rc" -eq 2 ] || { fail=$((fail + 1)); echo "  FAIL  complete: '$c' is not a findings command (rc $rc)"; }
+done
+check "complete: sessions --ide"                   "claude codex opencode" "$(comp findings sessions --ide '')"
+check "complete: done offers open ids"             "F$sc" "$(comp findings 'done' '')"
+absent "complete: open does not offer open ones"   "F$sc " "$(comp findings open '')"
+check "complete: --session offers session ids"     "$SC" "$(comp findings skip --session '')"
+check "complete: --scope words"                    "session project all" "$(comp findings list --scope '')"
+check "complete: --scope with a path: directories" "$A" "$(comp findings list --scope "$TMP/repo-")"
+check "complete: list PATH: directories"           "$B" "$(comp findings list "$TMP/repo-")"
+check "complete: flags of a decision"              "--session --status --yes" "$(comp findings 'done' --)"
+check "complete: __complete of nothing is silent"  "" "$("$BIN/findings" __complete nonsense)"
+
 # One decision for every finding a filter selects.
 out="$(f skip --session "$SC" < /dev/null)"
 check "filter: no terminal and no --yes refuses"   "no terminal to ask on — add --yes" "$out"

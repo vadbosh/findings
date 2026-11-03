@@ -188,6 +188,14 @@ content is backed up to `~/.local/state/findings/backups/` first.
 
 Needs python 3.8+ and, for filing by repository, git. No packages.
 
+Tab completion for bash goes to
+`~/.local/share/bash-completion/completions/findings`. In a new shell, Tab
+after `findings` offers the commands. After `done`, `skip`, `park`, `fix` or
+`brief` it offers the open finding ids, after `--ide` the three IDEs, after
+`--session` the session ids, after `-p` the directories. Without the
+bash-completion package, add `source ~/.local/share/bash-completion/completions/findings`
+to `~/.bashrc`. There is no completion for PowerShell.
+
 ## Usage
 
 ```bash

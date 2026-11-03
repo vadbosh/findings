@@ -25,10 +25,13 @@ version() {
 
 # Installed path for each shipped file, as install.sh writes it.
 installed() {
+    local comp="${BASH_COMPLETION_USER_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/bash-completion}"
+    comp="${comp%%:*}/completions"
     cat <<EOF
 bin/findings $HOME/.local/bin/findings
 bin/findings-hook $HOME/.local/bin/findings-hook
 bin/found-defects-guard $HOME/.local/bin/found-defects-guard
+bin/findings-completion.bash $comp/findings
 rules/found-defects-last.md $HOME/.claude/rules/found-defects-last.md
 rules/found-defects-last.md $HOME/.codex/memories/found-defects-last.md
 rules/found-defects-last.md $HOME/.config/opencode/instructions/found-defects-last.md

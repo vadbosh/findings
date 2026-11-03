@@ -48,4 +48,6 @@ done
 
 say "── commands ──"
 for f in findings findings-hook found-defects-guard; do remove_file "$BIN_DIR/$f"; done
+COMP_DIR="${BASH_COMPLETION_USER_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/bash-completion}"
+remove_file "${COMP_DIR%%:*}/completions/findings"
 say "The ledger stays: ${XDG_STATE_HOME:-$HOME/.local/state}/findings/"

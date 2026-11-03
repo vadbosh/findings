@@ -33,8 +33,8 @@ fresh() {
     printf '{}\n' > "$H/.codex/hooks.json"
     printf '{\n  "plugin": ["./plugins/other.ts"]\n}\n' > "$H/.config/opencode/opencode.json"
 }
-inst()   { HOME="$H" XDG_STATE_HOME= bash "$SRC/install.sh" "$@" > "$TMP/out" 2>&1; }
-uninst() { HOME="$H" XDG_STATE_HOME= bash "$SRC/uninstall.sh" "$@" > "$TMP/out" 2>&1; }
+inst()   { HOME="$H" XDG_STATE_HOME='' XDG_DATA_HOME='' BASH_COMPLETION_USER_DIR='' bash "$SRC/install.sh" "$@" > "$TMP/out" 2>&1; }
+uninst() { HOME="$H" XDG_STATE_HOME='' XDG_DATA_HOME='' BASH_COMPLETION_USER_DIR='' bash "$SRC/uninstall.sh" "$@" > "$TMP/out" 2>&1; }
 
 # Every hook command per event, sorted — duplication and rewrites both show.
 shape() {
@@ -61,7 +61,7 @@ for f in .local/bin/findings .local/bin/findings-hook .local/bin/found-defects-g
          .claude/rules/found-defects-last.md .claude/commands/findings.md \
          .codex/memories/found-defects-last.md .codex/skills/findings/SKILL.md \
          .config/opencode/instructions/found-defects-last.md .config/opencode/commands/findings.md \
-         .config/opencode/plugins/findings.ts; do
+         .config/opencode/plugins/findings.ts .local/share/bash-completion/completions/findings; do
     [ -f "$H/$f" ] && ok "installed $f" || no "installed $f" "missing"
 done
 # The Codex skill is the command rebuilt by lib/skill.sh; a command edited
@@ -104,7 +104,7 @@ claude="$(shape "$H/.claude/settings.json")"
 [[ "$claude" == *"/opt/other/stop.sh"* && "$claude" != *found-defects-guard* && "$claude" != *findings-hook* ]] \
     && ok "uninstall removes ours and keeps the foreign hook" || no "uninstall" "$claude"
 grep -q '"model": "x"' "$H/.claude/settings.json" && ok "uninstall keeps unrelated keys" || no "unrelated keys" "$(cat "$H/.claude/settings.json")"
-[ ! -e "$H/.local/bin/findings" ] && [ ! -e "$H/.claude/rules/found-defects-last.md" ] && ok "uninstall removes the files" || no "uninstall files" "$(ls -R "$H" | head)"
+[ ! -e "$H/.local/bin/findings" ] && [ ! -e "$H/.claude/rules/found-defects-last.md" ] && [ ! -e "$H/.local/share/bash-completion/completions/findings" ] && ok "uninstall removes the files" || no "uninstall files" "$(ls -R "$H" | head)"
 [ ! -e "$H/.codex/skills/findings" ] && ok "uninstall removes the Codex skill and its directory" || no "codex skill left" "$(ls -R "$H/.codex/skills" 2>&1 | head)"
 
 # --dry-run writes nothing; --no-rule installs no rule.

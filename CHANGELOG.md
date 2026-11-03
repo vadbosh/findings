@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.11.0 — 2026-11-03
+
+- **Tab completion for bash.** `./install.sh` puts `bin/findings-completion.bash`
+  into `~/.local/share/bash-completion/completions/findings` (or the first
+  directory of `BASH_COMPLETION_USER_DIR`), `uninstall.sh` removes it, and
+  `release.sh check` compares it. Tab offers the commands, the open finding ids
+  after `done`, `skip`, `park`, `fix` and `brief`, the parked, skipped and done
+  ones after `open`, the IDEs after `--ide`, the statuses after `--status`, the
+  session ids after `--session`, and directories with the known projects after
+  `-p` and as the path of `list` and `sessions`. The words come from a new
+  hidden command, `findings __complete`, which reads the ledger only, so a Tab
+  takes about 0.1 s. The command list comes from there too, so the completion
+  cannot fall behind the CLI. Works with the bash 3.2 that macOS ships.
+
 ## 0.10.9 — 2026-10-19
 
 - **A ready answer may decide this session's earlier findings** (F398). The

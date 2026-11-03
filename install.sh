@@ -8,6 +8,8 @@
 #
 # What goes where:
 #   ~/.local/bin/                      findings, findings-hook, found-defects-guard
+#   ~/.local/share/bash-completion/completions/findings
+#                                      Tab completion for findings in bash
 #   ~/.claude/rules/  ~/.codex/memories/  ~/.config/opencode/instructions/
 #                                      found-defects-last.md, the rule
 #   ~/.claude/commands/  ~/.config/opencode/commands/
@@ -32,6 +34,8 @@ tilde() { case "$1" in "$HOME"*) printf '~%s' "${1#"$HOME"}" ;; *) printf '%s' "
 
 SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BIN_DIR="$HOME/.local/bin"
+COMP_DIR="${BASH_COMPLETION_USER_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/bash-completion}"
+COMP_DIR="${COMP_DIR%%:*}/completions"
 STATE="${XDG_STATE_HOME:-$HOME/.local/state}/findings"
 DRY_RUN=0
 WITH_RULE=1
@@ -103,6 +107,12 @@ for f in findings findings-hook found-defects-guard; do
     install_file "$SRC/bin/$f" "$BIN_DIR/$f" 755
 done
 case ":$PATH:" in *":$BIN_DIR:"*) ;; *) say "note: $BIN_DIR is not on PATH — the hooks use full paths, but add it to run findings by hand" ;; esac
+# Tab completion, where bash-completion looks for this user's files: the first
+# directory of BASH_COMPLETION_USER_DIR, else $XDG_DATA_HOME/bash-completion.
+install_file "$SRC/bin/findings-completion.bash" "$COMP_DIR/findings"
+if [ ! -r /usr/share/bash-completion/bash_completion ] && [ ! -r /etc/bash_completion ]; then
+    say "note: no bash-completion package — Tab after 'findings' needs: source $(tilde "$COMP_DIR/findings") in ~/.bashrc"
+fi
 
 unwired=""
 found=0
