@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.11.2 — 2026-11-03
+
+- **The `fresh` line puts `--` before the prompt.** A shell function such as
+  `claude() { command claude --mcp-config ~/.claude/mcp.json "$@"; }` leaves the
+  prompt right after `--mcp-config`, which takes any number of files.
+  `claude "$(findings brief F127)"` then failed with `Invalid MCP configuration:
+  … ENAMETOOLONG`, because the brief was read as a file name. The lines are now
+  `claude -- "$(findings brief F12)"` and `codex -- …`. In PowerShell the
+  separator is quoted, `'--'`. opencode takes the prompt as the value of
+  `--prompt` and is unchanged.
+
 ## 0.11.1 — 2026-11-03
 
 - **Tab offers the ids of this project, by number.** It offered all 149 open

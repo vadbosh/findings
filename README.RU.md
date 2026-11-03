@@ -109,7 +109,7 @@ claude  3f2a9c1e-5b7d-4e2a-9c1f-8a6b2d4e0f13  /srv/app  last 2026-10-19 10:31 (3
   title:  Migration rollback
   F12 [related] `/srv/app/db/migrate.py:88` — откат не удаляет созданный индекс …
   resume: cd /srv/app && claude --resume 3f2a9c1e-5b7d-4e2a-9c1f-8a6b2d4e0f13
-  fresh:  cd /srv/app && claude "$(findings brief F12)"
+  fresh:  cd /srv/app && claude -- "$(findings brief F12)"
 ```
 
 `resume` возвращает в ту сессию. `fresh` открывает новую сессию в проекте
@@ -121,12 +121,12 @@ claude  3f2a9c1e-5b7d-4e2a-9c1f-8a6b2d4e0f13  /srv/app  last 2026-10-19 10:31 (3
 
 | IDE | `resume` | `fresh` |
 |---|---|---|
-| Claude Code | `claude --resume ID` | `claude "$(findings brief F12)"` |
-| Codex | `codex resume ID` | `codex "$(findings brief F12)"` |
+| Claude Code | `claude --resume ID` | `claude -- "$(findings brief F12)"` |
+| Codex | `codex resume ID` | `codex -- "$(findings brief F12)"` |
 | opencode | `opencode --session ID` | `opencode --prompt "$(findings brief F12)"` |
 
 На Windows строки пишутся для PowerShell 5.1 и 7:
-`Set-Location 'DIR'; claude (findings brief F12 | Out-String)`. На настоящей
+`Set-Location 'DIR'; claude '--' (findings brief F12 | Out-String)`. На настоящей
 Windows эта форма ещё не запускалась.
 
 Если транскрипта сессии больше нет, нет и строки `resume`. Строка `fresh`
@@ -203,7 +203,7 @@ id сессий, после `-p` — каталоги. Предлагаются 
 
 `findings fix F12` в терминале статус не меняет. Команда печатает строку,
 которая запускает IDE в проекте находки с brief в качестве промпта:
-`cd /srv/app && claude "$(findings brief F12)"`.
+`cd /srv/app && claude -- "$(findings brief F12)"`.
 
 ## Использование
 

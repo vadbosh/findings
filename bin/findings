@@ -669,7 +669,7 @@ def fix_lines(ids, items):
         info = session_info(it.get("session"))
         kind = (info["ide"] if info else ide_of(it.get("session"))) or "claude"
         groups.setdefault((it.get("project"), kind), []).append(f"F{i}")
-    return [run_in(p, RESUME[kind][1].format(prompt=brief_arg(" ".join(names))))
+    return [run_in(p, fresh_cmd(kind, " ".join(names)))
             for (p, kind), names in groups.items()]
 
 
@@ -730,11 +730,23 @@ def projects(archived=False):
 # which IDE, the directory to resume from, a title, the last activity. Read
 # from disk only, no model.
 
+# `--` before the prompt: a wrapper such as
+#   claude() { command claude --mcp-config ~/.claude/mcp.json "$@"; }
+# leaves the prompt right after --mcp-config, which takes any number of files,
+# and the prompt was read as one: ENAMETOOLONG. Codex has options of that kind
+# too (--image). opencode takes the prompt as the value of --prompt.
 RESUME = {
-    "claude": ("claude --resume {id}", "claude {prompt}"),
-    "codex": ("codex resume {id}", "codex {prompt}"),
+    "claude": ("claude --resume {id}", "claude {end} {prompt}"),
+    "codex": ("codex resume {id}", "codex {end} {prompt}"),
     "opencode": ("opencode --session {id}", "opencode --prompt {prompt}"),
 }
+
+
+def fresh_cmd(kind, ids):
+    """The command that starts IDE `kind` with the brief of `ids` as its prompt.
+    PowerShell gets '--' quoted: unquoted, it may keep the token to itself."""
+    end = "'--'" if shell() == "powershell" else "--"
+    return RESUME[kind][1].format(end=end, prompt=brief_arg(ids))
 
 
 def shell():
@@ -915,7 +927,7 @@ def sessions(items, ide=None):
             mark = "" if it["status"] == "open" else f" ({it['status']})"
             block.append(f"  {label(it, color=True)}{mark}  — {it['ts'][:10]}")
         if kind:
-            resume, fresh = RESUME[kind]
+            resume = RESUME[kind][0]
             if info:
                 block.append(f"  resume: {run_in(info['cwd'], resume.format(id=sid))}")
             # The fix belongs where the defect is: the project the ledger
@@ -924,7 +936,7 @@ def sessions(items, ide=None):
             for it in group:
                 by_project.setdefault(it.get("project"), []).append(f"F{it['id']}")
             for p, ids in by_project.items():
-                block.append(f"  fresh:  {run_in(p, fresh.format(prompt=brief_arg(' '.join(ids))))}")
+                block.append(f"  fresh:  {run_in(p, fresh_cmd(kind, ' '.join(ids)))}")
         out.append("\n".join(block))
     return "\n\n".join(out)
 
@@ -1041,13 +1053,13 @@ Which session found what:
 
   What they run, per IDE:
     Claude Code  resume:  cd DIR && claude --resume ID
-                 fresh:   cd DIR && claude "$(findings brief F12)"
+                 fresh:   cd DIR && claude -- "$(findings brief F12)"
     Codex        resume:  cd DIR && codex resume ID
-                 fresh:   cd DIR && codex "$(findings brief F12)"
+                 fresh:   cd DIR && codex -- "$(findings brief F12)"
     opencode     resume:  cd DIR && opencode --session ID
                  fresh:   cd DIR && opencode --prompt "$(findings brief F12)"
   On Windows the lines are for PowerShell (5.1 and 7), for example:
-    Set-Location 'DIR'; claude (findings brief F12 | Out-String)
+    Set-Location 'DIR'; claude '--' (findings brief F12 | Out-String)
 
   findings brief F12 F14             PRINTS that prompt: each finding, where it is, the session
                                      it came from, and what to do

@@ -109,7 +109,7 @@ claude  3f2a9c1e-5b7d-4e2a-9c1f-8a6b2d4e0f13  /srv/app  last 2026-10-19 10:31 (3
   title:  Migration rollback
   F12 [related] `/srv/app/db/migrate.py:88` — the rollback skips the index it created …
   resume: cd /srv/app && claude --resume 3f2a9c1e-5b7d-4e2a-9c1f-8a6b2d4e0f13
-  fresh:  cd /srv/app && claude "$(findings brief F12)"
+  fresh:  cd /srv/app && claude -- "$(findings brief F12)"
 ```
 
 `resume` returns to that session. `fresh` starts a new session in the project of
@@ -122,12 +122,12 @@ The commands differ by IDE:
 
 | IDE | `resume` | `fresh` |
 |---|---|---|
-| Claude Code | `claude --resume ID` | `claude "$(findings brief F12)"` |
-| Codex | `codex resume ID` | `codex "$(findings brief F12)"` |
+| Claude Code | `claude --resume ID` | `claude -- "$(findings brief F12)"` |
+| Codex | `codex resume ID` | `codex -- "$(findings brief F12)"` |
 | opencode | `opencode --session ID` | `opencode --prompt "$(findings brief F12)"` |
 
 On Windows the lines are for PowerShell 5.1 and 7:
-`Set-Location 'DIR'; claude (findings brief F12 | Out-String)`. This form has
+`Set-Location 'DIR'; claude '--' (findings brief F12 | Out-String)`. This form has
 not been run on real Windows yet.
 
 When a transcript is gone, there is no `resume` line. The `fresh` line stays: the
@@ -200,7 +200,7 @@ There is no completion for PowerShell.
 
 `findings fix F12` in a terminal changes no status. It prints the line that
 starts an IDE in the project of the finding, with the brief as the prompt:
-`cd /srv/app && claude "$(findings brief F12)"`.
+`cd /srv/app && claude -- "$(findings brief F12)"`.
 
 ## Usage
 
