@@ -320,6 +320,8 @@ for c in $("$BIN/findings" __complete commands); do
     # argparse exits 0 on --help; a verb with an unknown id exits 2 — both mean the CLI knows it
     [ "$rc" -eq 0 ] || [ "$rc" -eq 2 ] || { fail=$((fail + 1)); echo "  FAIL  complete: '$c' is not a findings command (rc $rc)"; }
 done
+check "complete: findings - offers -h and --help"  "--help -h" "$(comp findings -)"
+check "complete: findings --he offers --help"      "--help" "$(comp findings --he)"
 check "complete: sessions --ide"                   "claude codex opencode" "$(comp findings sessions --ide '')"
 check "complete: done offers open ids"             "F$sc" "$(comp findings 'done' '')"
 absent "complete: open does not offer open ones"   "F$sc " "$(comp findings open '')"
@@ -327,7 +329,12 @@ check "complete: --session offers session ids"     "$SC" "$(comp findings skip -
 check "complete: --scope words"                    "session project all" "$(comp findings list --scope '')"
 check "complete: --scope with a path: directories" "$A" "$(comp findings list --scope "$TMP/repo-")"
 check "complete: list PATH: directories"           "$B" "$(comp findings list "$TMP/repo-")"
-check "complete: flags of a decision"              "--session --status --yes" "$(comp findings 'done' --)"
+check "complete: flags of a decision"              "--help --project --session --status --yes" "$(comp findings 'done' --)"
+check "complete: every flag of list"               "--all --archive --help --project --scope --session --status" "$(comp findings list --)"
+check "complete: every flag of sessions"           "--help --ide --project --scope --status" "$(comp findings sessions --)"
+check "complete: flags of brief too"               "--help" "$(comp findings brief --)"
+check "complete: add, the hooks' command"          "--cwd --help --project --session --tag --text --where" "$(comp findings add --)"
+check "done --help prints its options"             "--yes" "$(f 'done' --help)"
 out="$(cd "$B" && "$BIN/findings" __complete ids | tr '\n' ' ')"
 check "complete: ids of the project of the cwd"   "F$sx " "$out"
 absent "complete: no ids of other projects"        "F$so " "$out"

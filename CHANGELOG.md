@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.11.4 — 2026-11-03
+
+- **Tab completes every option.** The completion listed the options of six
+  commands by hand: `brief`, `set` and `compact` had none, and no command had
+  `--help`. They now come from the parsers themselves, through
+  `findings __complete flags <command>`, so a new option is offered at once.
+  `findings -<Tab>` offers `--help` and `-h`.
+- **`findings done --help`** (and `skip`, `park`, `open`) prints the options of
+  a decision by filter. It used to fail as an unknown id.
+
 ## 0.11.3 — 2026-11-03
 
 - **`findings sessions` says what it lists.** The rows of open findings carried

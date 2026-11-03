@@ -673,16 +673,22 @@ def fix_lines(ids, items):
             for (p, kind), names in groups.items()]
 
 
-def decide_filtered(argv):
-    """`findings skip --session ID`, `findings done --project PATH`: one
-    decision for every finding a filter selects. It lists them and asks first;
-    --yes skips the question, and with no terminal to ask on it is required."""
-    ap = argparse.ArgumentParser(prog=f"findings {argv[0].lower()}")
+def filter_parser(verb):
+    """The options of a decision by filter, `findings skip --session ID`."""
+    ap = argparse.ArgumentParser(prog=f"findings {verb}")
     ap.add_argument("--session", default=None, help="session id or its prefix")
     ap.add_argument("-p", "--project", default=None, help="a path inside the project")
     ap.add_argument("--status", default=None,
                     help="comma list (default: open,park; for `open`: park,skip,done)")
     ap.add_argument("--yes", "-y", action="store_true", help="apply without asking")
+    return ap
+
+
+def decide_filtered(argv):
+    """`findings skip --session ID`, `findings done --project PATH`: one
+    decision for every finding a filter selects. It lists them and asks first;
+    --yes skips the question, and with no terminal to ask on it is required."""
+    ap = filter_parser(argv[0].lower())
     verb = argv[0].lower()
     if verb == "fix":
         print("findings: fix takes ids, not a filter — a fix is work for the assistant",
@@ -1122,6 +1128,14 @@ def complete(args):
                                                                reverse=True) if it.get("session"))
         elif what == "projects":
             out = projects()
+        elif what == "flags":
+            # From the parsers themselves, so a new option is offered at once.
+            cmd = args[1] if len(args) > 1 else ""
+            _, subs = build_parser()
+            parser = (subs.get(cmd) or
+                      (filter_parser(cmd) if cmd in ("done", "skip", "park", "open") else None))
+            opts = [o for act in parser._actions for o in act.option_strings] if parser else []
+            out = sorted(dict.fromkeys(opts), key=lambda o: (not o.startswith("--"), o))
         else:
             out = ()
         print("\n".join(out))
@@ -1138,8 +1152,23 @@ def main(argv):
         return 0
     if argv and argv[0] == "__complete":
         return complete(argv[1:])
+    ap, _ = build_parser()
+    # `findings park 4-9` reads like the chat answer it comes from, and so does
+    # `findings skip F80 fix F85` — several decisions in one line.
+    if argv and argv[0].lower() in VERBS:
+        filters = {o for a in filter_parser("x")._actions for o in a.option_strings}
+        # -h/--help goes there too: argparse prints the options of a decision.
+        if any(w.split("=")[0] in filters for w in argv[1:]):
+            return decide_filtered(argv)
+        return decide(argv)
+    return run(ap, argv)
+
+
+def build_parser():
+    """The argparse parser of the subcommands, and the subparsers by name."""
     ap = argparse.ArgumentParser(prog="findings", description=__doc__.split("\n\n")[0])
     sub = ap.add_subparsers(dest="cmd")
+    subs = {}
     for name in ("list", "count", "set", "add", "record", "compact", "reserve", "sessions", "brief"):
         s = sub.add_parser(name)
         s.add_argument("-p", "--project", default=None, help="a path inside the project (default: cwd)")
@@ -1173,13 +1202,11 @@ def main(argv):
         if name in ("add", "record", "reserve"):
             s.add_argument("--cwd", default=os.getcwd())
             s.add_argument("--session", default=None)
-    # `findings park 4-9` reads like the chat answer it comes from, and so does
-    # `findings skip F80 fix F85` — several decisions in one line.
-    if argv and argv[0].lower() in VERBS:
-        if any(w.split("=")[0] in ("--session", "--project", "-p", "--status", "--yes", "-y")
-               for w in argv[1:]):
-            return decide_filtered(argv)
-        return decide(argv)
+        subs[name] = s
+    return ap, subs
+
+
+def run(ap, argv):
     if argv and argv[0] in ("list", "sessions"):
         argv = argv[:1] + path_scope(argv[1:])
     a = ap.parse_args(argv)

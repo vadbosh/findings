@@ -44,7 +44,8 @@ _findings_complete() {
     COMPREPLY=()
 
     if [ "$COMP_CWORD" -eq 1 ]; then
-        _findings_reply "$(_findings_words commands)"
+        if [[ $cur == -* ]]; then _findings_reply $'--help\n-h'
+        else _findings_reply "$(_findings_words commands)"; fi
         return 0
     fi
 
@@ -60,15 +61,9 @@ _findings_complete() {
         --tag)              _findings_reply $'related\nunrelated\nurgent'; return 0 ;;
     esac
 
-    case "$cmd" in
-        list)     flags=$'--scope\n--session\n--status\n--archive\n--all\n-p' ;;
-        sessions) flags=$'--ide\n--scope\n--status\n-p' ;;
-        done|skip|park|open) flags=$'--session\n-p\n--status\n--yes' ;;
-        count)    flags=$'-p' ;;
-        add)      flags=$'--where\n--text\n--tag\n--cwd\n--session' ;;
-        record|reserve) flags=$'--cwd\n--session' ;;
-    esac
+    # Every option of the command, from its parser: `findings __complete flags CMD`.
     if [[ $cur == -* ]]; then
+        flags="$(_findings_words flags "$cmd")"
         _findings_reply "$flags"
         return 0
     fi
