@@ -1000,6 +1000,9 @@ def brief(ids):
 HELP_HEAD = """\
 findings — defects an assistant found along the way; one ledger for Claude Code, Codex, opencode
 
+Every command has its own help, with examples: findings help sessions, or findings sessions -h.
+  Topics: list sessions brief done skip park open fix count project colour completion hooks
+
 COMMANDS
     findings list                       # open findings of this project
     findings list --long                # the same, with the session and directory of each
@@ -1191,6 +1194,11 @@ def main(argv):
                   + ", ".join(list(HELP_TOPICS) + list(HELP_ALIASES)), file=sys.stderr)
             return 2
         print(text, end="")
+        return 0
+    # `findings sessions -h` is the same page as `findings help sessions`:
+    # the topic has the examples, argparse's own usage line has none.
+    if len(argv) > 1 and help_text(argv[0]) and any(w in ("-h", "--help") for w in argv[1:]):
+        print(help_text(argv[0]), end="")
         return 0
     if argv and argv[0] == "__complete":
         return complete(argv[1:])

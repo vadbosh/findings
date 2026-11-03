@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.12.2 — 2026-11-03
+
+- **`findings -h` says that every command has its own help**, how to open it
+  and which topics there are. Before, only the last line of COMMANDS said so.
+- **`findings sessions -h`** (and `-h` or `--help` after any command) prints
+  the same section as `findings help sessions`, with its examples, instead of
+  argparse's usage line.
+
 ## 0.12.1 — 2026-11-03
 
 - **`findings -h` is one short page.** 0.12.0 printed the whole manual, about
