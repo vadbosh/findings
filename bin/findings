@@ -1028,13 +1028,28 @@ Decide many at once, by filter, instead of listing ids:
   findings open --session 50af0012              REOPENS its parked, skipped and done ones
   findings skip --session 50af0012 --yes        no question: applies at once
 
-  --session ID     the full session id or its first characters, as `findings
-                   sessions` prints it
-  -p, --project P  a path; the project is found as for `findings list PATH`
-  --status S       which statuses to touch, comma list. Default: open,park; for
-                   `open`: park,skip,done. A finding already in the target status
-                   is left alone
-  --yes, -y        apply without asking
+  The options go after the verb — done, skip, park or open — never alone:
+
+  findings skip --session 50af0012-1b68-48c7-a0ec-8b95e6a58735
+  findings skip --session 50af0012
+      --session ID: the session id in full or its first characters, as
+      `findings sessions` prints it. Selects what that session found.
+  findings done -p /srv/app
+  findings done --project /srv/app
+      -p, --project PATH: a path; its project is found as for `findings list
+      PATH`. Selects the findings of that project.
+  findings skip --session 50af0012 --status open
+  findings done -p /srv/app --status open,park,skip
+      --status S: which statuses to touch, a comma list. Default open,park;
+      for `open` park,skip,done. A finding already in the target status is
+      left alone.
+  findings skip --session 50af0012 --yes
+  findings skip --session 50af0012 -y
+      --yes, -y: apply without asking.
+
+  To only look first, list with the same filter:
+  findings --session 50af0012        same as findings list --session 50af0012
+  findings list -p /srv/app --status open,park
 
   Without --yes the command lists what it selected and asks: skip these 3? [y/N]
   y, yes or да applies; anything else changes nothing. With no terminal to ask on,
@@ -1079,6 +1094,8 @@ Lists:
                                      is no session id, so the whole project
   findings list --scope project      every finding of this project (-p PATH: another one)
   findings list --scope all          every project
+  findings --session 50af0012        no command is list: also findings /srv/app,
+                                     findings --scope all
   findings list --status any         also the skipped and done ones
   findings list --archive            done findings that compaction moved out
   findings count                     one line: open, urgent, parked
@@ -1207,6 +1224,11 @@ def build_parser():
 
 
 def run(ap, argv):
+    # No command is `list`: `findings --session ID`, `findings /srv/app`,
+    # `findings --scope all`. argparse would take the first word for a command.
+    if argv and argv[0] not in COMMANDS and (argv[0].startswith("-") or os.sep in argv[0]
+                                             or argv[0][:1] in "~."):
+        argv = ["list"] + argv
     if argv and argv[0] in ("list", "sessions"):
         argv = argv[:1] + path_scope(argv[1:])
     a = ap.parse_args(argv)

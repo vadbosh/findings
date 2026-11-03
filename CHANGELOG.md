@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.11.5 — 2026-11-03
+
+- **No command is `list`, with options too.** `findings --session 50af0012`
+  failed with `invalid choice`: argparse took the session id for a command.
+  A first word that is an option or a path now means `list`:
+  `findings --session ID`, `findings /srv/app`, `findings --scope all`. A
+  mistyped command is still refused.
+- **The options of a decision by filter are shown in full commands.** The help
+  listed `--session`, `-p`, `--status` and `--yes` on their own, and they read as
+  options of `findings` itself. Each now stands in a command with its verb,
+  `findings skip --session 50af0012`, the block says the options go after
+  `done`, `skip`, `park` or `open`, and it shows how to list the same selection
+  first.
+
 ## 0.11.4 — 2026-11-03
 
 - **Tab completes every option.** The completion listed the options of six
