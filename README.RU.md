@@ -195,9 +195,15 @@ cd findings
 `~/.local/share/bash-completion/completions/findings`. В новом шелле Tab после
 `findings` предлагает команды. После `done`, `skip`, `park`, `fix` или `brief`
 он предлагает id открытых находок, после `--ide` — три IDE, после `--session` —
-id сессий, после `-p` — каталоги. Если пакета bash-completion нет, добавьте в
-`~/.bashrc` строку `source ~/.local/share/bash-completion/completions/findings`.
-Для PowerShell автодополнения нет.
+id сессий, после `-p` — каталоги. Предлагаются id проекта текущего каталога, по
+порядку номеров; если у проекта находок нет — все. Если пакета bash-completion
+нет, добавьте в `~/.bashrc` строку
+`source ~/.local/share/bash-completion/completions/findings`. Для PowerShell
+автодополнения нет.
+
+`findings fix F12` в терминале статус не меняет. Команда печатает строку,
+которая запускает IDE в проекте находки с brief в качестве промпта:
+`cd /srv/app && claude "$(findings brief F12)"`.
 
 ## Использование
 

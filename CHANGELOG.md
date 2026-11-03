@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.11.1 — 2026-11-03
+
+- **Tab offers the ids of this project, by number.** It offered all 149 open
+  ids of every project, in the order bash sorts words: F10 F128 F18 F8. Now
+  it offers the findings of the project of the current directory, found as
+  `findings list` finds it, and all of them only where that project has none.
+  They come in numeric order (`compopt -o nosort`, bash 4.4 and newer).
+- **`findings fix` in a terminal prints the line that starts an IDE.** It
+  printed "for the assistant: fix, verify…", which tells a person nothing. Run
+  in a terminal, it now prints `cd /srv/app && claude "$(findings brief F12)"`
+  for the project and IDE of each finding, and `findings done` for later. The
+  assistant, which reads the output through a pipe, still gets its line.
+
 ## 0.11.0 — 2026-11-03
 
 - **Tab completion for bash.** `./install.sh` puts `bin/findings-completion.bash`

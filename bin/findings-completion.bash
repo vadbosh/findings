@@ -6,6 +6,9 @@
 # where bash-completion loads it the first time Tab is pressed after "findings".
 # Without the bash-completion package, source it from ~/.bashrc instead.
 #
+# Ids are those of the project of the current directory, as `findings list`
+# finds it, or all of them when it has none.
+#
 # The words come from `findings __complete`, which reads the ledger only — not
 # the IDE transcripts `findings sessions` reads — so a Tab stays quick. The
 # command list comes from there too, so this file cannot fall behind the CLI.
@@ -24,6 +27,9 @@ _findings_fill() {    # reads lines into COMPREPLY
 _findings_reply() {   # words — the ones that start with the current word
     local IFS=$'\n'
     _findings_fill < <(compgen -W "$1" -- "$cur")
+    # In the order given: ids by number, sessions newest first. bash 4.4+;
+    # older ones sort alphabetically, F10 before F8.
+    compopt -o nosort 2>/dev/null || true
 }
 
 _findings_dirs() {    # directories, plus the projects the ledger knows

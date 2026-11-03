@@ -646,11 +646,31 @@ def decide(args):
         append(None, events)
     for v, ids in groups:
         names = ", ".join(f"F{i}" for i in ids)
-        if v == "fix":
+        if v == "fix" and sys.stdout.isatty():
+            # A person at a terminal cannot fix it here: give the line that
+            # opens the IDE of the session that found it, in the finding's project.
+            print(f"fix: {names} — a fix needs an IDE. Start one in the finding's project:")
+            for line in fix_lines(ids, items):
+                print(f"  {line}")
+            print("Then, once the fix works: findings done " + " ".join(f"F{i}" for i in ids))
+        elif v == "fix":
             print(f"fix: {names} — for the assistant: fix, verify, then `findings done <id>`")
         else:
             print(f"{v}: {names}")
     return 0
+
+
+def fix_lines(ids, items):
+    """`fresh` lines for these findings: one per project and IDE. The IDE is
+    the one of the session that found them; Claude Code when that is unknown."""
+    groups = {}
+    for i in ids:
+        it = items[i]
+        info = session_info(it.get("session"))
+        kind = (info["ide"] if info else ide_of(it.get("session"))) or "claude"
+        groups.setdefault((it.get("project"), kind), []).append(f"F{i}")
+    return [run_in(p, RESUME[kind][1].format(prompt=brief_arg(" ".join(names))))
+            for (p, kind), names in groups.items()]
 
 
 def decide_filtered(argv):
@@ -972,6 +992,7 @@ Decide in a terminal. Only a fix needs the assistant; the rest is one command:
   findings skip F12                DECLINES F12: not a defect, or not worth fixing
   findings park F12-F15            DEFERS them: kept in the ledger, no longer shown in the chat
   findings open F12                REOPENS F12
+  findings fix F12                 PRINTS the line that starts an IDE on F12, in its project
   findings skip F12 done F14       several decisions in one line, also with " · " between them
 
   A line with one unknown id changes nothing.
@@ -1073,8 +1094,14 @@ def complete(args):
         if what == "commands":
             out = COMMANDS
         elif what == "ids":
+            # The project of the current directory, found as `findings list`
+            # finds it; all of them when it has none. In numeric order: the
+            # completion tells bash not to sort.
             want = ("park", "skip", "done") if args[1:] == ["closed"] else ("open", "park")
-            out = [f"F{i}" for i, it in sorted(load().items()) if it["status"] in want]
+            every = sorted(load().items())
+            here = reading_project(os.getcwd())
+            out = ([f"F{i}" for i, it in every if it["status"] in want and it.get("project") == here]
+                   or [f"F{i}" for i, it in every if it["status"] in want])
         elif what == "sessions":
             out = dict.fromkeys(it["session"] for it in sorted(load().values(), key=lambda it: it["ts"],
                                                                reverse=True) if it.get("session"))

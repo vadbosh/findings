@@ -324,6 +324,17 @@ check "complete: --scope words"                    "session project all" "$(comp
 check "complete: --scope with a path: directories" "$A" "$(comp findings list --scope "$TMP/repo-")"
 check "complete: list PATH: directories"           "$B" "$(comp findings list "$TMP/repo-")"
 check "complete: flags of a decision"              "--session --status --yes" "$(comp findings 'done' --)"
+out="$(cd "$B" && "$BIN/findings" __complete ids | tr '\n' ' ')"
+check "complete: ids of the project of the cwd"   "F$sx " "$out"
+absent "complete: no ids of other projects"        "F$so " "$out"
+check "complete: no project here: every id"        "F$so" "$(cd "$TMP" && "$BIN/findings" __complete ids)"
+# `fix` run by a person prints the line that opens an IDE; for an assistant the old line.
+check "fix, no terminal: the assistant's line"     "for the assistant" "$(f fix "F$sx")"
+if command -v script >/dev/null 2>&1 && script -qc true /dev/null >/dev/null 2>&1; then
+    out="$(script -qc "'$BIN/findings' fix F$sx" /dev/null)"
+    check "fix, terminal: needs an IDE"            "a fix needs an IDE" "$out"
+    check "fix, terminal: codex line for a codex session" "cd $B && codex \"\$(findings brief F$sx)\"" "$out"
+fi
 check "complete: __complete of nothing is silent"  "" "$("$BIN/findings" __complete nonsense)"
 
 # One decision for every finding a filter selects.

@@ -192,9 +192,15 @@ Tab completion for bash goes to
 `~/.local/share/bash-completion/completions/findings`. In a new shell, Tab
 after `findings` offers the commands. After `done`, `skip`, `park`, `fix` or
 `brief` it offers the open finding ids, after `--ide` the three IDEs, after
-`--session` the session ids, after `-p` the directories. Without the
-bash-completion package, add `source ~/.local/share/bash-completion/completions/findings`
-to `~/.bashrc`. There is no completion for PowerShell.
+`--session` the session ids, after `-p` the directories. The ids are those of
+the project of the current directory, by number; where that project has none,
+all of them. Without the bash-completion package, add
+`source ~/.local/share/bash-completion/completions/findings` to `~/.bashrc`.
+There is no completion for PowerShell.
+
+`findings fix F12` in a terminal changes no status. It prints the line that
+starts an IDE in the project of the finding, with the brief as the prompt:
+`cd /srv/app && claude "$(findings brief F12)"`.
 
 ## Usage
 
