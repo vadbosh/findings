@@ -229,6 +229,8 @@ findings sessions [PATH] [--ide claude|codex|opencode] [--scope all|project] [--
 findings list /srv/app   # the project of /srv/app; also --scope /srv/app
 findings brief F12 F14    # the prompt for a fresh session
 findings --help           # every command with an example; also -h and help
+findings help sessions    # one command, every option with an example
+findings list --long      # the session and directory under each row; on in a terminal
 
 # -p PATH: the project of PATH instead of the current directory
 ```

@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.12.0 — 2026-11-03
+
+- **`findings --help` is laid out like `awsv help`.** It was a run of themed
+  blocks, and the options of one command were spread over several of them. Now:
+  a short head, START HERE, COMMANDS with one line each, FILES, then a section
+  per command in which every option stands on its own line with an example and
+  what it does. `findings help COMMAND` prints one section: `findings help
+  sessions`, `findings help skip`; also `project`, `colour`, `completion` and
+  `hooks`. An unknown topic lists the topics.
+- **`findings list --long`** (`-l`) prints the session and the directory of each
+  finding under its row: `claude session 50af0012-… · cwd /AI_P/azure`. In a
+  terminal it is on by itself. The `/findings` command reads the list through a
+  pipe and gets the rows as before.
+
 ## 0.11.5 — 2026-11-03
 
 - **No command is `list`, with options too.** `findings --session 50af0012`
