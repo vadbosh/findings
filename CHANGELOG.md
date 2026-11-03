@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.12.1 — 2026-11-03
+
+- **`findings -h` is one short page.** 0.12.0 printed the whole manual, about
+  150 lines, and nobody reads that. `-h` now prints one line on what findings
+  is, the commands with one line each, and the files: about 20 lines. The
+  sections stay behind `findings help COMMAND`, each cut to 4-7 examples and a
+  short example of the output: `findings help sessions`, `findings help skip`.
+- **The READMEs say what the tool does now.** The example section has the
+  ledger ids and the project groups of 0.9.1 and 0.9.3, and the two lines a
+  section ends with. A section without ids no longer "does not block": since
+  0.9.3 the hook asks for it again. The opencode row names both plugin
+  generations. Usage is split into the assistant and the terminal, Tab
+  completion has a table of its own, and Files and Uninstall name the
+  completion file.
+
 ## 0.12.0 — 2026-11-03
 
 - **`findings --help` is laid out like `awsv help`.** It was a run of themed

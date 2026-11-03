@@ -30,28 +30,38 @@ Done: the migration runs, tests pass.
 
 ## Found along the way
 
-1. [related] `/srv/app/db/migrate.py:88` — the rollback skips the index it created — read the down() method. Fix?
-2. [unrelated] `/srv/infra/alerts/coredns.yaml` — 8 rules never deployed: the directory is missing from alert_rule_dirs. Fix?
-3. [urgent][unrelated] prod: `KubernetesHPAScalingAbility` firing for 7 days — unverified. Fix?
+`/srv/app` — this project:
+1. F12: [related] `/srv/app/db/migrate.py:88` — the rollback skips the index it created — read the down() method. Fix?
+2. F14: [urgent][unrelated] prod: `KubernetesHPAScalingAbility` firing for 7 days — unverified. Fix?
+
+`/srv/infra`:
+3. F13: [unrelated] `/srv/infra/alerts/coredns.yaml` — 8 rules never deployed: the directory is missing from alert_rule_dirs. Fix?
+
+Decide in one line: /findings fix F12 · park F13 · skip F14
+fix — fix now · park — defer · skip — decline · done — already fixed · open — reopen
 ```
+
+Each item opens with its ledger id, so the answer needs no lookup. Items from
+more than one project are grouped by project. A finding with no path, like the
+alert, goes to the project of the session's directory.
 
 The next reply does not repeat them. They are in the ledger:
 
 ```
 $ findings list --all
 findings: /srv/app
+  F14 [urgent][unrelated] prod: `KubernetesHPAScalingAbility` firing for 7 days — unverified.  — 2026-10-01
   F12 [related] `/srv/app/db/migrate.py:88` — the rollback skips the index it created …  — 2026-10-01
 
 findings: /srv/infra
-  F14 [urgent][unrelated] prod: `KubernetesHPAScalingAbility` firing for 7 days — unverified.  — 2026-10-01
   F13 [unrelated] `/srv/infra/alerts/coredns.yaml` — 8 rules never deployed …  — 2026-10-01
 ```
 
 You answer in one line, in chat or with the command:
 
 ```
-fix 12 · park 13 · skip 14
-/findings park 13-14
+/findings fix F12 · park F13 · skip F14
+findings park F13 F14        # the same from a terminal, no assistant needed
 ```
 
 ## When findings are shown
@@ -193,57 +203,69 @@ content is backed up to `~/.local/state/findings/backups/` first.
 
 Needs python 3.8+ and, for filing by repository, git. No packages.
 
-Tab completion for bash goes to
-`~/.local/share/bash-completion/completions/findings`. In a new shell, Tab
-after `findings` offers the commands. After `done`, `skip`, `park`, `fix` or
-`brief` it offers the open finding ids, after `--ide` the three IDEs, after
-`--session` the session ids, after `-p` the directories. The ids are those of
-the project of the current directory, by number; where that project has none,
-all of them. Without the bash-completion package, add
+### Tab completion in bash
+
+`./install.sh` puts it into `~/.local/share/bash-completion/completions/findings`.
+In a new shell, Tab after `findings` offers:
+
+| After | Tab offers |
+|---|---|
+| `findings` | the commands; `-` gives `--help`, `-h` |
+| `done`, `skip`, `park`, `fix`, `brief` | the ids of this project's open findings, by number |
+| `open` | the ids of its parked, skipped and done findings |
+| `-` after any command | every option of that command |
+| `--ide`, `--status`, `--scope` | their values |
+| `--session` | the session ids, newest first |
+| `-p`, or a path after `list` and `sessions` | directories and the projects the ledger knows |
+
+Where the project of the current directory has no findings, Tab offers all ids.
+Without the bash-completion package, add
 `source ~/.local/share/bash-completion/completions/findings` to `~/.bashrc`.
 There is no completion for PowerShell.
 
-`findings fix F12` in a terminal changes no status. It prints the line that
-starts an IDE in the project of the finding, with the brief as the prompt:
-`cd /srv/app && claude -- "$(findings brief F12)"`.
-
 ## Usage
 
+In the assistant:
+
 ```bash
-/findings                 # this session (Claude Code, Opencode)
-/findings project         # the whole project
-/findings all             # every project
-/findings park 4-9        # also: skip, done, open — ids like 3, F3, 4-9, 3,5
-/findings fix 3,5         # take them on as the task
+/findings                    # this session's findings (Claude Code, Opencode)
+/findings project            # the whole project
+/findings all                # every project
+/findings fix 3,5            # take them on as the task; ids like 3, F3, 4-9, 3,5
 /findings skip F80 fix F85   # several decisions in one line; also with " · "
-
-findings list [--scope session|project|all] [--session ID] [--status open,park,skip,done|any] [-p PATH]
-findings count [-p PATH]  # one line, for hooks and prompts
-findings set park 4-9     # or simply: findings park 4-9
-findings skip --session 50af0012 --yes   # every open or parked finding of that session
-findings done -p /srv/app               # every one of that project; asks first without --yes
-findings sessions [PATH] [--ide claude|codex|opencode] [--scope all|project] [--status open|any]
-findings list /srv/app   # the project of /srv/app; also --scope /srv/app
-findings brief F12 F14    # the prompt for a fresh session
-findings --help           # every command with an example; also -h and help
-findings help sessions    # one command, every option with an example
-findings list --long      # the session and directory under each row; on in a terminal
-
-# -p PATH: the project of PATH instead of the current directory
 ```
 
 Codex has no user slash commands, so the same command is a skill there:
 `$findings`, `$findings fix F12`. It is built from `commands/findings.md` by
 `lib/skill.sh`, and the tests fail when the two differ.
 
+In a terminal, with no assistant and no tokens spent:
+
+```bash
+findings list                        # the open findings of this project
+findings list /srv/app --long        # another project, with the session and directory of each
+findings sessions --ide claude       # the open findings by session; also codex, opencode
+findings brief F12                   # what F12 is
+findings done F12                    # decide; also skip, park, open
+findings skip --session 50af0012     # every open finding of that session; asks first
+findings fix F12                     # print the command that opens an IDE on F12
+findings count                       # one line, for prompts and status bars
+findings -h                          # one page of commands
+findings help sessions               # one command in full, with examples
+```
+
+`findings fix F12` in a terminal changes no status. It prints the line that
+starts an IDE in the project of the finding, with the brief as the prompt:
+`cd /srv/app && claude -- "$(findings brief F12)"`.
+
 ## How it is wired
 
 | | Claude Code | Codex | Opencode |
 |---|---|---|---|
 | the rule — where a finding goes, when the digest is shown | `~/.claude/rules/` | `~/.codex/memories/` + `@` line in `AGENTS.md` | `instructions/` + `opencode.json` |
-| record the reply's section in the ledger | Stop hook | Stop hook | plugin, on `session.idle` |
+| record the reply's section in the ledger | Stop hook | Stop hook | plugin: `session.execution.succeeded` in opencode 2, `session.idle` in 1 |
 | catch a finding buried in the body | Stop hook | Stop hook | — |
-| tell the model what is open and urgent | UserPromptSubmit hook | UserPromptSubmit hook | plugin, system prompt |
+| tell the model what is open and urgent | UserPromptSubmit hook | UserPromptSubmit hook | plugin: the `context` hook in opencode 2, the system prompt in 1 |
 | `/findings` | ✓ | `$findings`, skill in `~/.codex/skills/` | ✓ |
 
 **Catching a buried finding.** `found-defects-guard` reads the finished reply.
@@ -271,6 +293,8 @@ nothing.
 
 ```
 bin/findings              the ledger CLI
+bin/findings.cmd          the same on Windows
+bin/findings-completion.bash   Tab completion for bash
 bin/findings-hook         UserPromptSubmit hook
 bin/found-defects-guard   Stop hook
 plugins/opencode/findings.ts
@@ -295,11 +319,12 @@ one instead. The exception is an id that the ledger already holds for the same
 place. Such an item repeats that finding, as a digest does, and nothing new is
 recorded.
 
-The model does not always do it. When an item comes without its id, gets a
-different one, or turns out to be already in the ledger, the hook shows which
-number each item got — under the reply, as a notice, without blocking it. Each
-line carries the file name and the first words of what is wrong, because
-several findings can sit in one file:
+The model does not always do it. An item can come without its id, or the ready
+answer can name an id from another session. The hook then records the items
+anyway and continues the turn once, and the model prints the section again with
+the ids they got. The hook also shows which number each item got, under the reply. Each line
+carries the file name and the first words of what is wrong, because several
+findings can sit in one file:
 
 ```
 findings recorded:
@@ -349,8 +374,8 @@ None of them touch the real configuration or the real ledger.
 ./uninstall.sh
 ```
 
-Removes the hooks, the plugin, the rule, the command and the CLI. The ledger
-stays: it is your data.
+Removes the hooks, the plugin, the rule, the command, the CLI and the Tab
+completion. The ledger stays: it is your data.
 
 ## License
 

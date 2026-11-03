@@ -30,28 +30,38 @@ Windows: [установка вручную](README.WIN.ru.md).
 
 ## Найдено попутно
 
-1. [связано] `/srv/app/db/migrate.py:88` — откат не удаляет созданный индекс — прочитал down(). Исправить?
-2. [не связано] `/srv/infra/alerts/coredns.yaml` — 8 правил не деплоятся: каталога нет в alert_rule_dirs. Исправить?
-3. [срочно][не связано] прод: `KubernetesHPAScalingAbility` горит 7 дней — не проверено. Исправить?
+`/srv/app` — этот проект:
+1. F12: [связано] `/srv/app/db/migrate.py:88` — откат не удаляет созданный индекс — прочитал down(). Исправить?
+2. F14: [срочно][не связано] прод: `KubernetesHPAScalingAbility` горит 7 дней — не проверено. Исправить?
+
+`/srv/infra`:
+3. F13: [не связано] `/srv/infra/alerts/coredns.yaml` — 8 правил не деплоятся: каталога нет в alert_rule_dirs. Исправить?
+
+Решить одной строкой: /findings fix F12 · park F13 · skip F14
+fix — исправить сейчас · park — отложить · skip — отклонить · done — уже исправлено · open — вернуть
 ```
+
+Каждый пункт начинается с id из журнала, поэтому для ответа ничего не нужно
+искать. Пункты из разных проектов сгруппированы по проектам. Находка без пути,
+как алерт, попадает в проект каталога, где идёт сессия.
 
 Следующий ответ их не повторяет. Они в журнале:
 
 ```
 $ findings list --all
 findings: /srv/app
+  F14 [urgent][unrelated] прод: `KubernetesHPAScalingAbility` горит 7 дней — не проверено.  — 2026-10-01
   F12 [related] `/srv/app/db/migrate.py:88` — откат не удаляет созданный индекс …  — 2026-10-01
 
 findings: /srv/infra
-  F14 [urgent][unrelated] прод: `KubernetesHPAScalingAbility` горит 7 дней — не проверено.  — 2026-10-01
   F13 [unrelated] `/srv/infra/alerts/coredns.yaml` — 8 правил не деплоятся …  — 2026-10-01
 ```
 
 Отвечаете одной строкой — в чате или командой:
 
 ```
-fix 12 · park 13 · skip 14
-/findings park 13-14
+/findings fix F12 · park F13 · skip F14
+findings park F13 F14        # то же из терминала, без ассистента
 ```
 
 ## Когда находки показываются
@@ -196,57 +206,69 @@ cd findings
 Нужен python 3.8+, а чтобы раскладывать находки по репозиториям — git. Пакеты не
 нужны.
 
-Автодополнение для bash ставится в
-`~/.local/share/bash-completion/completions/findings`. В новом шелле Tab после
-`findings` предлагает команды. После `done`, `skip`, `park`, `fix` или `brief`
-он предлагает id открытых находок, после `--ide` — три IDE, после `--session` —
-id сессий, после `-p` — каталоги. Предлагаются id проекта текущего каталога, по
-порядку номеров; если у проекта находок нет — все. Если пакета bash-completion
-нет, добавьте в `~/.bashrc` строку
+### Автодополнение в bash
+
+`./install.sh` ставит его в `~/.local/share/bash-completion/completions/findings`.
+В новом шелле Tab после `findings` предлагает:
+
+| После | Tab предлагает |
+|---|---|
+| `findings` | команды; на `-` — `--help`, `-h` |
+| `done`, `skip`, `park`, `fix`, `brief` | id открытых находок этого проекта, по порядку номеров |
+| `open` | id его отложенных, отклонённых и исправленных находок |
+| `-` после любой команды | все опции этой команды |
+| `--ide`, `--status`, `--scope` | их значения |
+| `--session` | id сессий, свежие первыми |
+| `-p` или путь после `list` и `sessions` | каталоги и проекты, известные журналу |
+
+Если у проекта текущего каталога находок нет, Tab предлагает все id. Если
+пакета bash-completion нет, добавьте в `~/.bashrc` строку
 `source ~/.local/share/bash-completion/completions/findings`. Для PowerShell
 автодополнения нет.
 
-`findings fix F12` в терминале статус не меняет. Команда печатает строку,
-которая запускает IDE в проекте находки с brief в качестве промпта:
-`cd /srv/app && claude -- "$(findings brief F12)"`.
-
 ## Использование
 
+В ассистенте:
+
 ```bash
-/findings                 # this session (Claude Code, Opencode)
-/findings project         # the whole project
-/findings all             # every project
-/findings park 4-9        # also: skip, done, open — ids like 3, F3, 4-9, 3,5
-/findings fix 3,5         # take them on as the task
+/findings                    # this session's findings (Claude Code, Opencode)
+/findings project            # the whole project
+/findings all                # every project
+/findings fix 3,5            # take them on as the task; ids like 3, F3, 4-9, 3,5
 /findings skip F80 fix F85   # several decisions in one line; also with " · "
-
-findings list [--scope session|project|all] [--session ID] [--status open,park,skip,done|any] [-p PATH]
-findings count [-p PATH]  # one line, for hooks and prompts
-findings set park 4-9     # or simply: findings park 4-9
-findings skip --session 50af0012 --yes   # every open or parked finding of that session
-findings done -p /srv/app               # every one of that project; asks first without --yes
-findings sessions [PATH] [--ide claude|codex|opencode] [--scope all|project] [--status open|any]
-findings list /srv/app   # the project of /srv/app; also --scope /srv/app
-findings brief F12 F14    # the prompt for a fresh session
-findings --help           # every command with an example; also -h and help
-findings help sessions    # one command, every option with an example
-findings list --long      # the session and directory under each row; on in a terminal
-
-# -p PATH: the project of PATH instead of the current directory
 ```
 
 В Codex нет пользовательских слеш-команд, поэтому там та же команда сделана
 скиллом: `$findings`, `$findings fix F12`. Скилл собирает `lib/skill.sh` из
 `commands/findings.md`, и если они расходятся, тесты падают.
 
+В терминале, без ассистента и без расхода токенов:
+
+```bash
+findings list                        # the open findings of this project
+findings list /srv/app --long        # another project, with the session and directory of each
+findings sessions --ide claude       # the open findings by session; also codex, opencode
+findings brief F12                   # what F12 is
+findings done F12                    # decide; also skip, park, open
+findings skip --session 50af0012     # every open finding of that session; asks first
+findings fix F12                     # print the command that opens an IDE on F12
+findings count                       # one line, for prompts and status bars
+findings -h                          # one page of commands
+findings help sessions               # one command in full, with examples
+```
+
+`findings fix F12` в терминале статус не меняет. Команда печатает строку,
+которая запускает IDE в проекте находки с brief в качестве промпта:
+`cd /srv/app && claude -- "$(findings brief F12)"`.
+
 ## Как это подключено
 
 | | Claude Code | Codex | Opencode |
 |---|---|---|---|
 | правило — куда писать находку, когда показывать сводку | `~/.claude/rules/` | `~/.codex/memories/` + строка `@` в `AGENTS.md` | `instructions/` + `opencode.json` |
-| записать секцию ответа в журнал | Stop-хук | Stop-хук | плагин, на `session.idle` |
+| записать секцию ответа в журнал | Stop-хук | Stop-хук | плагин: `session.execution.succeeded` в opencode 2, `session.idle` в 1 |
 | поймать находку, спрятанную в тексте ответа | Stop-хук | Stop-хук | — |
-| сообщить модели, что открыто и что срочно | UserPromptSubmit-хук | UserPromptSubmit-хук | плагин, системный промпт |
+| сообщить модели, что открыто и что срочно | UserPromptSubmit-хук | UserPromptSubmit-хук | плагин: хук `context` в opencode 2, системный промпт в 1 |
 | `/findings` | ✓ | `$findings`, скилл в `~/.codex/skills/` | ✓ |
 
 **Как ловится спрятанная находка.** `found-defects-guard` читает готовый ответ.
@@ -274,6 +296,8 @@ Code показывает причину блокировки под «Stop hook
 
 ```
 bin/findings              the ledger CLI
+bin/findings.cmd          the same on Windows
+bin/findings-completion.bash   Tab completion for bash
 bin/findings-hook         UserPromptSubmit hook
 bin/found-defects-guard   Stop hook
 plugins/opencode/findings.ts
@@ -297,11 +321,12 @@ lib/wire.py               edits settings.json, hooks.json, opencode.json, AGENTS
 Исключение — номер, под которым в журнале уже есть находка в том же месте.
 Такой пункт повторяет её, как это делает сводка, и новой записи не появляется.
 
-Модель делает это не всегда. Если пункт пришёл без номера, получил другой
-номер или такая находка уже есть в журнале, хук показывает под ответом, какой
-номер достался каждому пункту. Ответ при этом не блокируется. В каждой строке —
-имя файла и первые слова о том, что не так: в одном файле может быть несколько
-находок:
+Модель делает это не всегда. Пункт может прийти без номера, а в готовом ответе
+может оказаться id из другой сессии. Тогда хук всё равно записывает пункты и
+один раз продолжает ход: модель печатает раздел заново с полученными номерами.
+Кроме того, хук показывает под ответом, какой номер достался каждому пункту. В
+каждой строке — имя файла и первые слова о том, что не так: в одном файле может
+быть несколько находок:
 
 ```
 findings recorded:
@@ -352,7 +377,8 @@ bash tests/test_install.sh             # install, re-install, uninstall, in a te
 ./uninstall.sh
 ```
 
-Удаляет хуки, плагин, правило, команду и CLI. Журнал остаётся: это ваши данные.
+Удаляет хуки, плагин, правило, команду, CLI и автодополнение. Журнал остаётся:
+это ваши данные.
 
 ## Лицензия
 

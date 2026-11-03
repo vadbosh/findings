@@ -998,182 +998,140 @@ def brief(ids):
 
 
 HELP_HEAD = """\
-findings keeps the defects an assistant found along the way: one ledger for
-Claude Code, Codex and opencode. Here you list them, see which session found
-them, and decide on them: done, skip, park, open. The fix itself happens in an IDE.
-
-  findings help COMMAND    one command, every option with an example
-  findings help            this page
-
-  Words in capitals are yours to fill in. F12 is a finding id: also 12, F4-F9 or
-  3,5, the same in every directory. ID is a session id or its first characters.
-  PATH is a directory. A project is what a finding is filed under: findings help project.
-
-START HERE
-    findings list                       # the open findings of this project
-    findings sessions                   # the open findings by the session that found them
-    findings brief F12                  # what F12 is: its text, place and session
-    findings done F12                   # F12 is fixed
-    findings skip F12                   # F12 is not worth fixing
+findings — defects an assistant found along the way; one ledger for Claude Code, Codex, opencode
 
 COMMANDS
-    findings list [PATH]                # the findings of a project or of a session
-    findings sessions [PATH]            # the findings by session, with resume and fresh lines
-    findings brief F12 ...              # the prompt to fix them in a new IDE session
-    findings done F12 ...               # fixed            (also by filter: --session, -p)
-    findings skip F12 ...               # declined: not a defect, or not worth fixing
-    findings park F12 ...               # deferred: kept in the ledger, not shown in the chat
-    findings open F12 ...               # reopened
-    findings fix F12 ...                # the line that starts an IDE on it
-    findings count                      # one line: open, urgent, parked
-    findings set STATUS F12 ...         # the same as findings STATUS F12
-    findings reserve|record|add|compact # what the hooks run: findings help hooks
-    findings help COMMAND               # one command in full
+    findings list                       # open findings of this project
+    findings list --long                # the same, with the session and directory of each
+    findings sessions                   # open findings by the session that found them
+    findings sessions --ide claude      # only Claude Code sessions; also codex, opencode
+    findings brief F12                  # what F12 is: text, place, session
+    findings done F12                   # mark F12 fixed
+    findings skip F12                   # decline F12: not worth fixing
+    findings park F12                   # defer F12: kept, not shown in the chat
+    findings open F12                   # reopen F12
+    findings skip --session 50af0012    # decide every finding of that session at once
+    findings fix F12                    # print the command that opens an IDE on F12
+    findings help COMMAND               # one command in full, with examples
 
 FILES
-  {ledger}
-                                      every finding and every decision, a line each
-  {archive}
-                                      done findings older than 30 days, after compaction
-  ~/.local/share/bash-completion/completions/findings
-                                      Tab completion for bash: findings help completion
+  {ledger}     every finding and every decision
+  {archive}    done findings older than 30 days
+  ~/.local/share/bash-completion/completions/findings   Tab completion
 """
 
 HELP_TOPICS = {
     "list": """\
-list — the findings of a project, or of a session
-    findings list                       # this project; inside an IDE, what this session found
+list — the findings of a project
+    findings list                       # this project; inside an IDE, this session's
     findings list /srv/app              # the project of /srv/app
-    findings list -p /srv/app           # the same; also --project /srv/app, --scope /srv/app
-    findings list --scope project       # every finding of this project, whatever the session
-    findings list --scope all           # every project; also --all
-    findings list --scope session       # what this session found; needs a session id
+    findings list --scope all           # every project
     findings list --session 50af0012    # what that session found, in every project
-    findings list --status any          # every status; default open,park; or a list: open,skip
-    findings list --long                # the session and directory under each row; also -l
-    findings list --archive             # the done findings that compaction moved out
-    findings --session 50af0012         # no command is list; also findings /srv/app
-  Rows are grouped by project. A row is F12 [tags] text (status) — date; an open
-  finding has no (status). In a terminal --long is on by itself.""",
+    findings list --status any          # every status, not only open and parked
+    findings list --long                # with the session and directory of each; on in a terminal
+  Example:
+    $ findings list /srv/app
+    findings: /srv/app
+      F12 [related] `/srv/app/db/migrate.py:88` — the rollback skips an index  — 2026-10-19
+          claude session 3f2a9c1e-… · cwd /srv/app""",
 
     "sessions": """\
-sessions — the findings by the session that found them
-    findings sessions                    # every IDE, every project, newest session first
-    findings sessions --ide claude       # Claude Code sessions only
-    findings sessions --ide codex        # Codex sessions only
-    findings sessions --ide opencode     # opencode sessions only
-    findings sessions /srv/app           # the findings of that project only
-    findings sessions --scope project    # the findings of this project; -p PATH: another one
-    findings sessions --status open,park # other statuses; any: all of them
-  The first line says what is listed; every row ends with its status: (open),
-  (park), (skip) or (done). Under each session:
-    resume:  goes back into that session
-    fresh:   starts a new session in the project of the finding, the brief as its prompt
-  What they run:
-    Claude Code  resume:  cd DIR && claude --resume ID
-                 fresh:   cd DIR && claude -- "$(findings brief F12)"
-    Codex        resume:  cd DIR && codex resume ID
-                 fresh:   cd DIR && codex -- "$(findings brief F12)"
-    opencode     resume:  cd DIR && opencode --session ID
-                 fresh:   cd DIR && opencode --prompt "$(findings brief F12)"
-  On Windows the lines are for PowerShell (5.1 and 7), for example:
-    Set-Location 'DIR'; claude '--' (findings brief F12 | Out-String)
-  Run it in a terminal: inside an IDE, every line is read again on each later call.""",
+sessions — open findings by the session that found them
+    findings sessions                    # every IDE, every project
+    findings sessions --ide claude       # Claude Code only; also codex, opencode
+    findings sessions .                  # this project only; or a path: /srv/app
+    findings sessions --status any       # every status, not only open
+  Under each session, two lines to copy:
+    resume:  cd DIR && claude --resume ID                  # back into that session
+    fresh:   cd DIR && claude -- "$(findings brief F12)"   # a new session to fix them
+  Codex and opencode sessions get their own commands in these lines.
+  Example:
+    $ findings sessions --ide claude
+    claude  3f2a9c1e-…  /srv/app  last 2026-10-19 10:31 (3m ago)
+      F12 [related] `/srv/app/db/migrate.py:88` — the rollback skips an index (open)  — 2026-10-19
+      fresh:  cd /srv/app && claude -- "$(findings brief F12)\"""",
 
     "brief": """\
 brief — the prompt to fix findings in a new IDE session
-    findings brief F12                  # each finding: text, project, place, source session
-    findings brief F12 F14 F20-F22      # several at once
-    claude -- "$(findings brief F12)"   # start Claude Code on it, as findings sessions prints
-  The prompt says what to do: check that the defect is still there, fix it, verify
-  the fix, run findings done.""",
+    findings brief F12                  # one finding: text, project, place, session
+    findings brief F12 F14-F16          # several
+    claude -- "$(findings brief F12)"   # start Claude Code on it
+  Example:
+    $ findings brief F12
+    Fix the findings below. … then run `findings done F<id>`.
+    F12 [related] — status open since 2026-10-19
+    where:   /srv/app/db/migrate.py:88""",
 
     "done": """\
 done, skip, park, open — decide
-    findings done F12                   # fixed: you have seen the fix work
+    findings done F12                   # fixed
     findings skip F12                   # declined: not a defect, or not worth fixing
-    findings park F12-F15               # deferred: kept in the ledger, not shown in the chat
+    findings park F12-F15               # deferred: kept, not shown in the chat
     findings open F12                   # reopened
-    findings skip F12 done F14          # several decisions in one line, also with " · "
-  A line with one unknown id changes nothing.
-
-  By filter. The options go after the verb, never alone:
-    findings skip --session 50af0012              # every open or parked finding of that session
-    findings done -p /srv/app                     # every open or parked finding of that project
-    findings done --project /srv/app              # the same
-    findings park --session 50af0012 -p /srv/app  # both: that session, in that project
-    findings skip --session 50af0012 --status open      # only the open ones
-    findings done -p /srv/app --status open,park,skip   # also the skipped ones
-    findings open --session 50af0012              # its parked, skipped and done ones
-    findings skip --session 50af0012 --yes        # no question; -y is the same
-  --session takes the id in full or its first characters, as findings sessions
-  prints it. --status names the statuses to touch: open,park by default, and
-  park,skip,done for open; a finding already in the target status is left alone.
-  Without --yes it lists the selection and asks: skip these 3? [y/N]. y, yes or да
-  applies, anything else changes nothing. With no terminal, as when an IDE runs it,
-  --yes is required. Nothing selected: "nothing to skip", exit 0.
-  Look first with the same filter: findings --session 50af0012""",
+    findings skip F12 done F14          # several decisions in one line
+    findings skip --session 50af0012    # every open finding of that session; asks first
+    findings done -p /srv/app --yes     # every open finding of that project; no question
+  Example:
+    $ findings skip --session 3f2a9c1e
+      F12 [related] … (open)  — 2026-10-19
+    skip these 1? [y/N] y
+    skip: F12""",
 
     "fix": """\
 fix — a fix is work for an IDE
-    findings fix F12                    # in a terminal: the line that starts an IDE on F12
-                                        # inside an IDE: the task, for the assistant
+    findings fix F12                    # print the command that opens an IDE on F12
   It changes no status; once the fix works, findings done F12.
-  A fix takes ids only: findings fix --session … is refused.""",
+  A fix takes ids only: findings fix --session … is refused.
+  Example:
+    $ findings fix F12
+    fix: F12 — a fix needs an IDE. Start one in the finding's project:
+      cd /srv/app && claude -- "$(findings brief F12)\"""",
 
     "count": """\
 count — one line, for a prompt or a status bar
-    findings count                      # 3 open, 0 urgent, 1 parked — /srv/app
-    findings count -p /srv/app          # another project""",
-
-    "set": """\
-set — the long form of a decision
-    findings set park F12-F15           # the same as findings park F12-F15""",
+    findings count                      # this project
+    findings count -p /srv/app          # another project
+  Example:
+    $ findings count
+    3 open, 0 urgent, 1 parked — /srv/app""",
 
     "project": """\
 project — what a finding is filed under
-  The git repository its path is in, when it is recorded: /srv/app for
-  /srv/app/db/migrate.py. Outside git, the directory. A finding with no path goes
-  to the project of the session's directory, so one session can file findings
-  under several projects.
-  Listing goes the other way: in a repository, its findings; outside git, the
-  nearest directory, here or above, that has findings filed under it.
-    findings list /srv/app              # the project of /srv/app
-    findings sessions --scope project   # the project of this directory""",
+  The git repository its path is in; outside git, the directory. Listing finds it
+  the same way: in a repository its findings; outside git the nearest directory,
+  here or above, that has findings.
+    findings list /srv/app              # the findings of the project of /srv/app
+    findings sessions .                 # the project of this directory""",
 
     "colour": """\
-colour — in a terminal only, the same in every listing
-    last 2026-10-19 10:31 (3m ago)      # bright green
-    [related] cyan   [unrelated] yellow   [urgent] bold bright red
-    NO_COLOR=1 findings sessions                         # no colour; also FINDINGS_COLOR=never
+colour — in a terminal only
+    NO_COLOR=1 findings sessions                         # no colour
     FINDINGS_COLOR=always findings sessions | less -R    # colour in a pipe too
-  An IDE, a hook or $(findings brief …) reads plain text.""",
+  last … is bright green, [related] cyan, [unrelated] yellow, [urgent] bold red.""",
 
     "completion": """\
 completion — Tab in bash
   ./install.sh puts it into ~/.local/share/bash-completion/completions/findings.
-  Tab offers the commands, the ids of this project, the options of each command,
-  the IDEs, the statuses, the session ids and the directories. Without the
-  bash-completion package, add to ~/.bashrc:
+  Without the bash-completion package, add to ~/.bashrc:
     source ~/.local/share/bash-completion/completions/findings""",
 
     "hooks": """\
-hooks — what the hooks and the assistant run, rarely by hand
+hooks — what the hooks and the assistant run
     findings reserve 3                  # ids for the next found-along-the-way section
-    findings record --cwd DIR < reply   # record the section of a reply read from stdin
-    findings add --where W --text T     # one finding; --tag related|unrelated|urgent
-    findings compact                    # one record per finding; old done ones to the archive""",
+    findings record --cwd DIR < reply   # record the section of a reply
+    findings add --where W --text T     # one finding by hand
+    findings compact                    # one record per finding; old done ones to the archive
+    findings set park F12               # the same as findings park F12""",
 }
 
-HELP_ALIASES = {"skip": "done", "park": "done", "open": "done", "color": "colour",
+HELP_ALIASES = {"skip": "done", "park": "done", "open": "done", "color": "colour", "set": "hooks",
                 "reserve": "hooks", "record": "hooks", "add": "hooks", "compact": "hooks"}
 
 
 def help_text(topic=None):
-    """The whole help, or one topic of it; None for a topic it does not have."""
+    """The short page, or one topic; None for a topic it does not have."""
     if topic is None:
-        head = HELP_HEAD.format(ledger=ledger(), archive=archive_path())
-        return head + "\n" + "\n\n".join(HELP_TOPICS.values()) + "\n"
+        return HELP_HEAD.format(ledger=ledger(), archive=archive_path())
     text = HELP_TOPICS.get(HELP_ALIASES.get(topic, topic))
     return text + "\n" if text else None
 
