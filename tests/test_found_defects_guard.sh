@@ -138,6 +138,19 @@ out="$(run "Готово.${NL}${NL}## Найдено попутно${NL}1. [св
 if ! printf '%s' "$out" | jq -e 'has("decision")' >/dev/null 2>&1; then pass=$((pass + 1)); [ "$QUIET" -eq 1 ] || echo "  ok    bare items: never a second block"
 else fail=$((fail + 1)); echo "  FAIL  bare items blocked twice: $out"; fi
 f1="$(FINDINGS_DIR="$FINDINGS_DIR" "$HERE/../bin/findings" reserve --session t)"
+# An item carrying a guessed id that belongs to another finding: the reason
+# says so, instead of "without ids" (F547 shown, F550 recorded, 2026-11-06).
+taken="$(FINDINGS_DIR="$FINDINGS_DIR" "$HERE/../bin/findings" add --where /tmp/taken.txt --text "someone else's finding" --session other | sed -n 's/^added \(F[0-9]*\).*/\1/p')"
+out="$(run "Готово.${NL}${NL}## Найдено попутно${NL}1. $taken: [связано] алерт следит только за старыми VM — x. Исправить?")"
+check_msg "a guessed id: the reason names it as another finding" "item 1 carried $taken, which is another finding" "$(printf '%s' "$out" | jq -r '.reason // ""')"
+# The section printed again by the same session, reworded: the id names the
+# same finding, nothing new is recorded (F552 beside F551, 2026-11-06).
+new="$(printf '%s' "$out" | jq -r '.reason // ""' | sed -n 's/.*Recorded: 1 → \(F[0-9]*\).*/\1/p')"
+run "Готово.${NL}${NL}## Найдено попутно${NL}1. $new: [связано] Алерт следит лишь за старыми машинами, новые без него — x. Исправить?" true >/dev/null
+n="$(FINDINGS_DIR="$FINDINGS_DIR" "$HERE/../bin/findings" list --scope all --status any | grep -c 'старыми')"
+if [ "$n" = 1 ]; then pass=$((pass + 1)); [ "$QUIET" -eq 1 ] || echo "  ok    a reworded reprint with its id records nothing new"
+else fail=$((fail + 1)); echo "  FAIL  reprint recorded again: $n rows"; fi
+
 # Another session's finding in the ready answer is foreign; one this session
 # recorded earlier is a decision on it, as `fix F397 · done F395` was (F398).
 fo="$(FINDINGS_DIR="$FINDINGS_DIR" "$HERE/../bin/findings" add --where /tmp/other.txt --text "found by another session" --session other | sed -n 's/^added \(F[0-9]*\).*/\1/p')"

@@ -1,12 +1,24 @@
 # Changelog
 
-## Unreleased
+## 0.12.4 — 2026-11-06
 
+- **The Stop hook says when an item carried another finding's id.** A model
+  that skipped `findings reserve` guessed F547 and F548; both belonged to other
+  findings, so the items were recorded as F550 and F551, and the hook's reason
+  said "items without their ledger ids" — the same findings seemed to have two
+  numbers. The reason now names it: `item 1 carried F547, which is another
+  finding (ids come from findings reserve, not guessed)`. An item with no id at
+  all still gets "carries no ledger id".
+- **A section printed again, reworded, records nothing new.** A finding with no
+  path takes its place from its first words. Printed again with its id but in
+  other words, it no longer matched, and F552 was recorded beside F551. An id
+  that the same session recorded within the last 15 minutes now names that
+  finding.
 - **Work notes in `kb/`, and an `AGENTS.md` entry point.** Where things stand,
   where each part lives in `bin/findings`, the traps and checks before a
   release, and why output meant for a person appears only in a terminal.
   `AGENTS.md` names the checks and what proves a task done; `CLAUDE.md`
-  imports it. The tool itself is unchanged.
+  imports it.
 
 ## 0.12.3 — 2026-11-03
 

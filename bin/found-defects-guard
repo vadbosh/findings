@@ -285,8 +285,21 @@ def id_problem(text, items, session=None):
     if not bare and not foreign:
         return ""
     got = ", ".join(f"{r['n']} → F{r['id']} ({r['project']})" for r in items)
-    why = ("items without their ledger ids" if bare else
-           f"the ready answer names {', '.join(f'F{i}' for i in foreign)}, not this section's ids")
+    # Say which: an item with no id, and an item that carried an id belonging
+    # to another finding, are different mistakes — the second looked like the
+    # same F printed with two numbers (F547 shown, F550 recorded, 2026-11-06).
+    parts = []
+    none = [r for r in bare if r["want"] is None]
+    wrong = [r for r in bare if r["want"] is not None]
+    if none:
+        parts.append(f"item {', '.join(str(r['n']) for r in none)} carries no ledger id")
+    if wrong:
+        parts.append("; ".join(f"item {r['n']} carried F{r['want']}, which is another finding "
+                               "(ids come from `findings reserve`, not guessed)" for r in wrong))
+    if foreign:
+        parts.append(f"the ready answer names {', '.join(f'F{i}' for i in foreign)}, "
+                     "not this section's ids")
+    why = "; ".join(parts)
     return (f"found-defects section: {why}. Recorded: {got}.\n"
             "Output only the found-defects section again: each item opens with its id "
             "(`1. F<id>: [tag] …`), grouped by the project shown, ready answer built from these ids.")
