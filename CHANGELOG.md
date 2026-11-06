@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.12.5 — 2026-11-06
+
+- **The prompt hook says, before the reply, where ids come from.** Every turn
+  with open findings, `findings-hook` adds: `New findings: run findings reserve N
+  first and open each item with the id it prints; never write an F number it did
+  not print.` The Stop hook only catches a guessed id after the reply, and
+  opencode, which cannot continue a turn, not at all; this line comes first, in
+  all three assistants.
+- **A reworded copy of a finding with no path is a duplicate.** Such a finding
+  takes its place from its first words, and the duplicate check compared texts
+  only where the places matched: F552 (texts 0.74 alike) was recorded beside
+  F551. A place made of words — with spaces, so not a path or a name — no
+  longer has to match; the texts in the project decide.
+
 ## 0.12.4 — 2026-11-06
 
 - **The Stop hook says when an item carried another finding's id.** A model

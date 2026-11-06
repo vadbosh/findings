@@ -60,6 +60,11 @@ def main():
     lines.append(f"This session ({sid}): {len(mine)} open finding(s). "
                  f"Digest: `findings list --session {sid}`; whole project: "
                  "`findings list --scope project`.")
+    # A model that skipped the reservation guessed the next numbers from the ids
+    # in its context; both belonged to other findings (F547/F548, 2026-11-06).
+    # The Stop hook catches that after the reply; this line is said before it.
+    lines.append("New findings: run `findings reserve N` first and open each item with "
+                 "the id it prints; never write an F number it did not print.")
     # An urgent finding is repeated into every prompt until decided, and its text
     # may quote a web page or a repository the model read. So each one is cut to
     # one line of CLIP characters and introduced as data: a long paragraph of

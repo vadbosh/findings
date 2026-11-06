@@ -115,6 +115,12 @@ f list --scope session -p "$A" >/dev/null 2>&1; rc=$?
                || { fail=$((fail + 1)); echo "  FAIL  --scope session without an id: rc=$rc"; }
 out="$(jq -nc --arg c "$TMP" '{cwd:$c,session_id:"g"}' | "$BIN/findings-hook" | jq -r .hookSpecificOutput.additionalContext)"
 check "hook names the session even where the project is empty"  "This session (g): 1 open" "$out"
+o1="$(f add --where "Строка подключения DefaultConnection4 в API указывает на 10.0.0.3, а такого" --text "Строка подключения DefaultConnection4 в API указывает на 10.0.0.3, а такого адреса нет ни в одной сети подписки и пиринга нет." --cwd "$A")"
+o2="$(f add --where "Строка подключения DefaultConnection4 в API указывает на 10.0.0.3. Такого ад" --text "Строка подключения DefaultConnection4 в API указывает на 10.0.0.3. Такого адреса нет ни в одной сети подписки, пиринга тоже нет." --cwd "$A")"
+check "dedupe: no path, reworded: the same finding (F552 beside F551)" "duplicate of ${o1#added }" "$o2"
+o3="$(f add --where "Алерт cpucredalert следит только за 4 старыми VM, у новых" --text "Алерт cpucredalert следит только за 4 старыми VM, у новых CPU-алерта нет." --cwd "$A")"
+check "dedupe: no path, another subject: new"      "added F" "$o3"
+check "hook: ids come from findings reserve, never guessed"      "never write an F number it did not print" "$out"
 
 # The prompt hook: urgent ones listed, silence when nothing is open.
 out="$(jq -nc --arg c "$A/sub" '{cwd:$c}' | "$BIN/findings-hook")"

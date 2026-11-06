@@ -379,7 +379,13 @@ def duplicate(items, e):
     for i, it in items.items():
         if it["status"] == "done":
             continue
-        if where and norm(it.get("where")) != where:
+        # A finding with no path takes its `where` from its first words, so a
+        # reworded copy has another one: F552 repeated F551 (texts 0.74 alike)
+        # and went in as new. A `where` with spaces is such words, not a path
+        # or a name: there the texts alone decide.
+        theirs = norm(it.get("where"))
+        loose = " " in where or " " in theirs
+        if where and theirs != where and not loose:
             continue
         if difflib.SequenceMatcher(None, norm(it.get("text")), text).ratio() >= 0.6:
             return i
