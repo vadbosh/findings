@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- **Work notes in `kb/`, and an `AGENTS.md` entry point.** Where things stand,
+  where each part lives in `bin/findings`, the traps and checks before a
+  release, and why output meant for a person appears only in a terminal.
+  `AGENTS.md` names the checks and what proves a task done; `CLAUDE.md`
+  imports it. The tool itself is unchanged.
+
 ## 0.12.3 — 2026-11-03
 
 - **Where a finding was found is coloured too.** Under a row of
