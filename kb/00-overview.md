@@ -17,7 +17,7 @@ Current snapshot: `01-state-2026-11-06.md` (2026-11-06). Earlier `state` files d
 | what you need | file | kind | updated |
 |---|---|---|---|
 | что сделано и что открыто на эту дату | `01-state-2026-11-06.md` | state | 2026-11-06 |
-| где в коде что лежит и откуда sessions берёт данные | `02-how-it-works.md` | reference | 2026-11-06 |
+| где в коде что лежит и откуда sessions берёт данные | `02-how-it-works.md` | reference | 2026-11-07 |
 | ловушки и проверки перед выпуском | `03-traps.md` | recipe | 2026-11-06 |
 | почему вывод для человека только в терминале и -h короткий | `04-terminal-vs-skill.md` | decision | 2026-11-06 |
 

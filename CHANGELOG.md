@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.12.6 — 2026-11-07
+
+- **A free guessed id is kept.** A resumed session skipped `findings reserve`
+  and went on counting from its last id: F493. That id was an unused
+  reservation of another session, five days old, so the item went in as F557
+  and the section was printed again: the same text twice, with two numbers. An
+  item now keeps the id it carries when no finding has it and it is this
+  session's reservation, another session's unused reservation older than an
+  hour, or the next id not yet handed out. Then the chat and the ledger agree
+  and nothing is printed twice. A taken id, or a fresh reservation of another
+  session, still gets the next free one.
+- **The hook says what holds a taken id.** It said "which is another finding"
+  for F493, which was no finding. It now says "which another session reserved,
+  or nobody handed out" where no finding has the id.
+
 ## 0.12.5 — 2026-11-06
 
 - **The prompt hook says, before the reply, where ids come from.** Every turn

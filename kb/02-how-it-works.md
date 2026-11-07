@@ -1,7 +1,7 @@
 ---
 title: где в коде что лежит и откуда sessions берёт данные
 kind: reference
-updated: 2026-11-06
+updated: 2026-11-07
 ---
 
 # где в коде что лежит и откуда sessions берёт данные
@@ -22,6 +22,7 @@ updated: 2026-11-06
 | чтение журнала, статусы | `read()`, `load()` |
 | к какому проекту запись / чтение | `route()`, `project_of()` / `reading_project()` |
 | раздел ответа → записи | `parse_section()`, `record_items()` |
+| какой id получит пункт, дубли | `append()`: `id_free()` (свой резерв, чужой старше `RESERVE_HOLD`, следующий свободный), `duplicate()` |
 | сессии IDE | `session_info()`: `_claude`, `_codex`, `_opencode`; `ide_of()` по форме id |
 | строки resume / fresh | `RESUME`, `fresh_cmd()`, `run_in()`, `brief_arg()` |
 | цвета | `COLORS`, `paint()`, `color_on()`, `help_paint()` |

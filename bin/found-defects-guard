@@ -294,7 +294,15 @@ def id_problem(text, items, session=None):
     if none:
         parts.append(f"item {', '.join(str(r['n']) for r in none)} carries no ledger id")
     if wrong:
-        parts.append("; ".join(f"item {r['n']} carried F{r['want']}, which is another finding "
+        try:
+            known = set(findings_module().load())
+        except Exception:
+            known = set()
+        def whose(i):
+            # F493 was an unused reservation, not a finding (2026-11-07).
+            return ("which is another finding" if i in known
+                    else "which another session reserved, or nobody handed out")
+        parts.append("; ".join(f"item {r['n']} carried F{r['want']}, {whose(r['want'])} "
                                "(ids come from `findings reserve`, not guessed)" for r in wrong))
     if foreign:
         parts.append(f"the ready answer names {', '.join(f'F{i}' for i in foreign)}, "

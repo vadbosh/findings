@@ -275,6 +275,30 @@ class Locked:
         self.f.close()
 
 
+RESERVE_HOLD = 3600   # seconds another session's reservation keeps its ids
+
+
+def id_free(want, held, everything, next_id, session):
+    """May an item keep the id it carries? Yes when no finding has it and it
+    is either this session's reservation, a reservation another session made
+    over an hour ago and never used, or the next id not yet handed out. A model
+    that skipped `findings reserve` guesses the next number; a free guess is
+    kept, so the chat and the ledger agree and nothing is printed twice —
+    F493 was an unused reservation from five days before, and the item went in
+    as F557 with the section printed again (2026-11-07). An id far ahead, or
+    one a finding or a fresh reservation holds, is never taken."""
+    if want in everything:
+        return False
+    if want == next_id:
+        return True
+    if want not in held:
+        return False
+    owner, when = held[want]
+    if not owner or not session or owner == session:
+        return True
+    return time.time() - when > RESERVE_HOLD
+
+
 def append(project, events):
     with Locked():
         # Ids are assigned under the lock, from what is on disk now: two
@@ -286,7 +310,10 @@ def append(project, events):
         # and it was reserved by the same session (or either side has none).
         # Otherwise the item gets the next id, as before: a wrong number in
         # the chat must not overwrite or block another finding.
-        held = {int(i): r.get("session") for r in reservations(ledger()) for i in r.get("ids", [])}
+        held = {}
+        for r in reservations(ledger()):
+            for i in r.get("ids", []):
+                held[int(i)] = (r.get("session"), stamp(r.get("ts")))
         items = {i: it for i, it in everything.items() if it.get("project") == project}
         out, lines = [], []
         for e in events:
@@ -313,11 +340,11 @@ def append(project, events):
                 if dup:
                     out.append((dup, False))
                     continue
-                owner = held.get(want, "-")
-                if (want is not None and want not in everything and owner != "-"
-                        and (not owner or not e.get("session") or owner == e.get("session"))):
+                if want is not None and id_free(want, held, everything, next_id, e.get("session")):
                     e = dict(e, id=want, project=project)
                     everything[want] = e
+                    if want == next_id:
+                        next_id += 1
                 else:
                     e = dict(e, id=next_id, project=project)
                     next_id += 1

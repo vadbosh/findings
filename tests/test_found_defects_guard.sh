@@ -151,6 +151,22 @@ n="$(FINDINGS_DIR="$FINDINGS_DIR" "$HERE/../bin/findings" list --scope all --sta
 if [ "$n" = 1 ]; then pass=$((pass + 1)); [ "$QUIET" -eq 1 ] || echo "  ok    a reworded reprint with its id records nothing new"
 else fail=$((fail + 1)); echo "  FAIL  reprint recorded again: $n rows"; fi
 
+# A guessed id that is free is kept: no reprint, the chat and the ledger agree
+# (F493, an unused reservation of another session, went in as F557, 2026-11-07).
+nxt="$(FINDINGS_DIR="$FINDINGS_DIR" "$HERE/../bin/findings" reserve --session t | tr -d F)"; nxt=$((nxt + 1))
+out="$(run "Готово.${NL}${NL}## Найдено попутно${NL}1. F$nxt: [связано] \`/tmp/guess-next.txt:1\` — угадан следующий номер — x. Исправить?${NL}${NL}Решить одной строкой: /findings fix F$nxt${NL}fix — исправить · park — отложить · skip — отклонить")"
+if ! printf '%s' "$out" | jq -e 'has("decision")' >/dev/null 2>&1; then pass=$((pass + 1)); [ "$QUIET" -eq 1 ] || echo "  ok    a guessed next id is kept: no reprint"
+else fail=$((fail + 1)); echo "  FAIL  guessed next id: $out"; fi
+check_msg "the guessed next id is the recorded one" "F$nxt " "$(FINDINGS_DIR="$FINDINGS_DIR" "$HERE/../bin/findings" list --scope all)"
+old="$(jq -nc --arg ts "$(date -u -d '-2 hours' +%Y-%m-%dT%H:%M:%S+0000)" --argjson i "$((nxt + 1))" '{op:"reserve",ts:$ts,ids:[$i],session:"stale"}')"
+printf '%s\n' "$old" >> "$FINDINGS_DIR/ledger.jsonl"
+out="$(run "Готово.${NL}${NL}## Найдено попутно${NL}1. F$((nxt + 1)): [связано] \`/tmp/guess-stale.txt:1\` — старый чужой резерв — x. Исправить?${NL}${NL}Решить одной строкой: /findings fix F$((nxt + 1))${NL}fix — исправить · park — отложить · skip — отклонить")"
+if ! printf '%s' "$out" | jq -e 'has("decision")' >/dev/null 2>&1; then pass=$((pass + 1)); [ "$QUIET" -eq 1 ] || echo "  ok    another session's unused reservation, over an hour old, is kept"
+else fail=$((fail + 1)); echo "  FAIL  stale reservation: $out"; fi
+fresh="$(FINDINGS_DIR="$FINDINGS_DIR" "$HERE/../bin/findings" reserve --session other2)"
+out="$(run "Готово.${NL}${NL}## Найдено попутно${NL}1. $fresh: [связано] \`/tmp/guess-fresh.txt:1\` — свежий чужой резерв — x. Исправить?")"
+check_msg "a fresh reservation of another session is not taken" "which another session reserved, or nobody handed out" "$(printf '%s' "$out" | jq -r '.reason // ""')"
+
 # Another session's finding in the ready answer is foreign; one this session
 # recorded earlier is a decision on it, as `fix F397 · done F395` was (F398).
 fo="$(FINDINGS_DIR="$FINDINGS_DIR" "$HERE/../bin/findings" add --where /tmp/other.txt --text "found by another session" --session other | sed -n 's/^added \(F[0-9]*\).*/\1/p')"
