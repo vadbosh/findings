@@ -361,6 +361,19 @@ def help_notice(reply, ids, cmd="/findings"):
     return answer.format(cmd=cmd, ids=",".join(f"F{i}" for i in ids)) + "\n" + verbs
 
 
+def ready_answer(reply, ids, cmd="/findings"):
+    """The ready answer with the ids the ledger gave, whatever the section
+    said: shown under a reply whose ids were missing or wrong."""
+    if not ids:
+        return ""
+    sections = list(SECTION.finditer(reply))
+    head = sections[-1].group(1) if sections else ""
+    lang = "ru" if re.search(r"[а-яё]", head, re.I) else "en"
+    answer, verbs = HELP[lang]
+    ids = sorted(dict.fromkeys(ids))
+    return answer.format(cmd=cmd, ids=",".join(f"F{i}" for i in ids)) + "\n" + verbs
+
+
 def main():
     payload = json.load(sys.stdin)
     reply = payload.get("last_assistant_message") or ""
@@ -378,10 +391,17 @@ def main():
             continue
         notice, items = ledger_record(text, payload)
         ids = [r["id"] for r in items]
-        for p in (notice, help_notice(text, ids, command_name(payload))):
+        wrong = id_problem(text, items, payload.get("session_id"))
+        # Ids the chat got wrong are put right under the reply, never by a
+        # reprint: a second copy of the section came back three times in four
+        # weeks, and the reader asked for one section and a line of real ids
+        # (2026-11-09). That line is the ready answer, built from the ledger.
+        fixed = ready_answer(text, ids, command_name(payload)) if wrong else ""
+        for p in (notice, fixed, "" if fixed else help_notice(text, ids, command_name(payload))):
             if p and p not in parts:
                 parts.append(p)
-        ids_wrong = id_problem(text, items, payload.get("session_id")) or ids_wrong
+        if wrong:
+            log([wrong.splitlines()[0]], payload)
     if parts:
         out["systemMessage"] = "\n".join(parts)
     if (os.environ.get("FOUND_DEFECTS_GUARD", "").lower() != "off"
@@ -390,9 +410,6 @@ def main():
         if problems:
             log(problems, payload)
             out.update(decision="block", reason=reason(problems, section_items(reply)))
-        elif ids_wrong:
-            log([ids_wrong.splitlines()[0]], payload)
-            out.update(decision="block", reason=ids_wrong)
     if out:
         sys.stdout.write(json.dumps(out, ensure_ascii=False))
 

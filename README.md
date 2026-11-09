@@ -330,8 +330,8 @@ recorded.
 
 The model does not always do it. An item can come without its id, or the ready
 answer can name an id from another session. The hook then records the items
-anyway and continues the turn once, and the model prints the section again with
-the ids they got. The hook also shows which number each item got, under the reply. Each line
+anyway and shows, under the reply, which number each item got and a ready
+answer with those numbers. The section is not printed a second time. Each line
 carries the file name and the first words of what is wrong, because several
 findings can sit in one file:
 

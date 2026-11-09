@@ -129,11 +129,18 @@ check_msg() { # what, needle, msg
     else fail=$((fail + 1)); echo "  FAIL  $1: $3"; fi
 }
 
-# The chat must show the ledger's ids: bare items, or a ready answer naming
-# other ids, continue the turn once with the ids the items got.
+# Ids missing or wrong in the chat are put right UNDER the reply: no block, no
+# reprint — a second copy of the section came back three times (2026-11-09).
+nobl() { # what, out — passes when the reply is not blocked
+    if ! printf '%s' "$2" | jq -e 'has("decision")' >/dev/null 2>&1; then pass=$((pass + 1)); [ "$QUIET" -eq 1 ] || echo "  ok    $1"
+    else fail=$((fail + 1)); echo "  FAIL  $1: $2"; fi
+}
+sm() { printf '%s' "$1" | jq -r '.systemMessage // ""'; }
 out="$(run "Готово.${NL}${NL}## Найдено попутно${NL}1. [связано] \`/tmp/b1.txt:1\` — без номера — x. Исправить?${NL}${NL}Решение одной строкой: /findings park F1-F3")"
-check_msg "bare items: block" "block" "$(printf '%s' "$out" | jq -r '.decision // ""')"
-check_msg "bare items: reason maps chat number to id" "1 → F" "$(printf '%s' "$out" | jq -r '.reason // ""')"
+nobl "bare items: no block, no reprint" "$out"
+check_msg "bare items: the notice maps chat number to id" "  1. F" "$(sm "$out")"
+b1="$(sm "$out" | sed -n 's/^  1\. \(F[0-9]*\) .*/\1/p')"
+check_msg "bare items: a ready answer with the real id" "Решить одной строкой: /findings fix|park|skip|done|open $b1" "$(sm "$out")"
 out="$(run "Готово.${NL}${NL}## Найдено попутно${NL}1. [связано] \`/tmp/b2.txt:1\` — без номера — x. Исправить?" true)"
 if ! printf '%s' "$out" | jq -e 'has("decision")' >/dev/null 2>&1; then pass=$((pass + 1)); [ "$QUIET" -eq 1 ] || echo "  ok    bare items: never a second block"
 else fail=$((fail + 1)); echo "  FAIL  bare items blocked twice: $out"; fi
@@ -142,10 +149,11 @@ f1="$(FINDINGS_DIR="$FINDINGS_DIR" "$HERE/../bin/findings" reserve --session t)"
 # says so, instead of "without ids" (F547 shown, F550 recorded, 2026-11-06).
 taken="$(FINDINGS_DIR="$FINDINGS_DIR" "$HERE/../bin/findings" add --where /tmp/taken.txt --text "someone else's finding" --session other | sed -n 's/^added \(F[0-9]*\).*/\1/p')"
 out="$(run "Готово.${NL}${NL}## Найдено попутно${NL}1. $taken: [связано] алерт следит только за старыми VM — x. Исправить?")"
-check_msg "a guessed id: the reason names it as another finding" "item 1 carried $taken, which is another finding" "$(printf '%s' "$out" | jq -r '.reason // ""')"
+nobl "a guessed taken id: no block" "$out"
+new="$(sm "$out" | sed -n 's/^  1\. \(F[0-9]*\) .*/\1/p')"
+check_msg "a guessed taken id: the ready answer names the real one" "open $new" "$(sm "$out")"
 # The section printed again by the same session, reworded: the id names the
 # same finding, nothing new is recorded (F552 beside F551, 2026-11-06).
-new="$(printf '%s' "$out" | jq -r '.reason // ""' | sed -n 's/.*Recorded: 1 → \(F[0-9]*\).*/\1/p')"
 run "Готово.${NL}${NL}## Найдено попутно${NL}1. $new: [связано] Алерт следит лишь за старыми машинами, новые без него — x. Исправить?" true >/dev/null
 n="$(FINDINGS_DIR="$FINDINGS_DIR" "$HERE/../bin/findings" list --scope all --status any | grep -c 'старыми')"
 if [ "$n" = 1 ]; then pass=$((pass + 1)); [ "$QUIET" -eq 1 ] || echo "  ok    a reworded reprint with its id records nothing new"
@@ -165,14 +173,18 @@ if ! printf '%s' "$out" | jq -e 'has("decision")' >/dev/null 2>&1; then pass=$((
 else fail=$((fail + 1)); echo "  FAIL  stale reservation: $out"; fi
 fresh="$(FINDINGS_DIR="$FINDINGS_DIR" "$HERE/../bin/findings" reserve --session other2)"
 out="$(run "Готово.${NL}${NL}## Найдено попутно${NL}1. $fresh: [связано] \`/tmp/guess-fresh.txt:1\` — свежий чужой резерв — x. Исправить?")"
-check_msg "a fresh reservation of another session is not taken" "which another session reserved, or nobody handed out" "$(printf '%s' "$out" | jq -r '.reason // ""')"
+nobl "a fresh reservation of another session: no block" "$out"
+got="$(sm "$out" | sed -n "s/^  1\. \(F[0-9]*\) .*/\1/p")"
+if [ -n "$got" ] && [ "$got" != "$fresh" ]; then pass=$((pass + 1)); [ "$QUIET" -eq 1 ] || echo "  ok    a fresh reservation of another session is not taken ($fresh → $got)"
+else fail=$((fail + 1)); echo "  FAIL  fresh reservation taken: fresh=$fresh got=$got"; fi
 
 # Another session's finding in the ready answer is foreign; one this session
 # recorded earlier is a decision on it, as `fix F397 · done F395` was (F398).
 fo="$(FINDINGS_DIR="$FINDINGS_DIR" "$HERE/../bin/findings" add --where /tmp/other.txt --text "found by another session" --session other | sed -n 's/^added \(F[0-9]*\).*/\1/p')"
 mine="$(FINDINGS_DIR="$FINDINGS_DIR" "$HERE/../bin/findings" add --where /tmp/mine.txt --text "found earlier in this session" --session t | sed -n 's/^added \(F[0-9]*\).*/\1/p')"
 out="$(run "Готово.${NL}${NL}## Найдено попутно${NL}1. $f1: [связано] \`/tmp/b3.txt:1\` — с номером — x. Исправить?${NL}${NL}Решение одной строкой: /findings park $fo")"
-check_msg "foreign ids in the ready answer: reason" "the ready answer names $fo" "$(printf '%s' "$out" | jq -r '.reason // ""')"
+nobl "foreign ids in the ready answer: no block" "$out"
+check_msg "foreign ids in the ready answer: the real one under the reply" "open $f1" "$(sm "$out")"
 out="$(run "Готово.${NL}${NL}## Найдено попутно${NL}1. $f1: [связано] \`/tmp/b3.txt:1\` — с номером — x. Исправить?${NL}${NL}Решение одной строкой: /findings fix $f1 · done $mine${NL}fix — исправить · park — отложить · skip — отклонить")"
 if ! printf '%s' "$out" | jq -e 'has("decision")' >/dev/null 2>&1; then pass=$((pass + 1)); [ "$QUIET" -eq 1 ] || echo "  ok    an earlier finding of this session in the ready answer passes (F398)"
 else fail=$((fail + 1)); echo "  FAIL  own earlier id blocked: $out"; fi

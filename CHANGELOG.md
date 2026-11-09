@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.12.7 — 2026-11-09
+
+- **The section is never printed twice.** When its items carry no ledger ids,
+  or ids that are not theirs, the Stop hook no longer continues the turn to have
+  the section printed again: that showed the same findings twice, three times
+  in four weeks. It records the items and shows under the reply the id each one
+  got, `findings recorded: 1. F573 …`, and a ready answer built from those ids,
+  `Decide in one line: /findings fix|park|skip|done|open F573`. The rule and both
+  READMEs say so. A finding buried in the body still continues the turn once.
+
 ## 0.12.6 — 2026-11-07
 
 - **A free guessed id is kept.** A resumed session skipped `findings reserve`
