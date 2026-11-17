@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- **`AGENTS.md`, `CLAUDE.md` and `kb/` are no longer tracked.** They were
+  committed by an assistant session on 2026-11-06, not by a decision of the
+  owner. `.gitignore` now carries the canonical ai-gitignore block. The files
+  stay on disk, and earlier commits still hold them: history is not rewritten.
+
 ## 0.12.7 — 2026-11-09
 
 - **The section is never printed twice.** When its items carry no ledger ids,
